@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Huella Local">
+    <meta name="description" content="Visualiza proyectos de Huella Local en Chile">
+    <meta name="keywords" content="geografia, mapas, leaflet, sig, tecnología, javascript, chile">
+    <title>Huella Local - Proyectos en Chile</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="./assets/css/style.css">
+</head>
+<body>
+
+<!-- Botón para abrir/cerrar sidebar -->
+<button id="toggleSidebar" class="toggle-sidebar" title="Mostrar/Ocultar filtros">☰</button>
+
+<!-- Sidebar de Filtros -->
+<div id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <h2>Filtros</h2>
+        <button id="closeSidebar" class="close-btn">✕</button>
+    </div>
+    
+    <div class="filter-group">
+        <label for="regionSelect">Región:</label>
+        <select id="regionSelect">
+            <option value="">-- Seleccionar Región --</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label for="provinceSelect">Provincia:</label>
+        <select id="provinceSelect" disabled>
+            <option value="">-- Seleccionar Provincia --</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label for="communeSelect">Comuna:</label>
+        <select id="communeSelect" disabled>
+            <option value="">-- Seleccionar Comuna --</option>
+        </select>
+    </div>
+
+    <div class="filter-actions">
+        <button id="applyFilters" class="btn-primary">Aceptar</button>
+        <button id="resetFilters" class="btn-secondary">Limpiar</button>
+    </div>
+
+    <div id="projectsList" class="projects-list"></div>
+</div>
+
+<!-- Mapa -->
+<div id="map"></div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="./assets/js/map.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,312 @@
+/* Estilos básicos para el contenedor del mapa y la página */
+* {
+    box-sizing: border-box;
+}
+
+body, html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#map {
+    height: 100%;
+    width: 100%;
+    transition: margin-left 0.3s ease;
+}
+
+/* ========== SIDEBAR ========== */
+.sidebar {
+    position: fixed;
+    left: -350px;
+    top: 0;
+    width: 350px;
+    height: 100vh;
+    background: white;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    overflow-y: auto;
+    transition: left 0.3s ease;
+    padding: 0;
+}
+
+.sidebar.active {
+    left: 0;
+}
+
+.sidebar-header {
+    background: #2c3e50;
+    color: white;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #34495e;
+}
+
+.sidebar-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+/* ========== TOGGLE BUTTON ========== */
+.toggle-sidebar {
+    position: fixed;
+    left: 10px;
+    top: 10px;
+    width: 45px;
+    height: 45px;
+    background: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.toggle-sidebar:hover {
+    background: #34495e;
+    transform: scale(1.05);
+}
+
+/* ========== FILTROS ========== */
+.filter-group {
+    padding: 15px;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.filter-group label {
+    display: block;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.filter-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #2c3e50;
+    background-color: white;
+    cursor: pointer;
+    transition: border-color 0.3s;
+}
+
+.filter-group select:hover {
+    border-color: #3498db;
+}
+
+.filter-group select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+}
+
+.filter-group select:disabled {
+    background-color: #ecf0f1;
+    color: #95a5a6;
+    cursor: not-allowed;
+}
+
+/* ========== BOTONES DE ACCIÓN ========== */
+.filter-actions {
+    padding: 15px;
+    display: flex;
+    gap: 10px;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.btn-primary, .btn-secondary {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 13px;
+}
+
+.btn-primary {
+    background: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+}
+
+.btn-secondary {
+    background: #ecf0f1;
+    color: #2c3e50;
+}
+
+.btn-secondary:hover {
+    background: #bdc3c7;
+}
+
+/* ========== LISTA DE PROYECTOS ========== */
+.projects-list {
+    padding: 0;
+}
+
+.project-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #ecf0f1;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-left: 4px solid transparent;
+}
+
+.project-item:hover {
+    background: #ecf0f1;
+    border-left-color: #3498db;
+}
+
+.project-item strong {
+    display: block;
+    color: #2c3e50;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.project-item small {
+    display: block;
+    color: #7f8c8d;
+    font-size: 11px;
+}
+
+.project-item .progress-bar {
+    height: 4px;
+    background: #ecf0f1;
+    border-radius: 2px;
+    margin-top: 5px;
+    overflow: hidden;
+}
+
+.project-item .progress-fill {
+    height: 100%;
+    background: #27ae60;
+    transition: width 0.3s;
+}
+
+/* ========== LEAFLET POPUP PERSONALIZADO ========== */
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-content {
+    margin: 0;
+    padding: 0;
+}
+
+.popup-content {
+    padding: 15px;
+    min-width: 280px;
+}
+
+.popup-content h4 {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+    font-size: 15px;
+}
+
+.popup-content p {
+    margin: 8px 0;
+    font-size: 13px;
+    color: #555;
+}
+
+.popup-content strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.popup-project-link {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #3498db;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: background 0.3s;
+}
+
+.popup-project-link:hover {
+    background: #2980b9;
+}
+
+/* ========== LEGEND ========== */
+.legend {
+    background: white !important;
+    padding: 15px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.legend h4 {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.legend i {
+    border-radius: 3px !important;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 280px;
+        left: -280px;
+    }
+
+    .toggle-sidebar {
+        left: 5px;
+        top: 5px;
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+
+    .filter-group {
+        padding: 12px;
+    }
+
+    .popup-content {
+        min-width: 250px;
+    }
+}
