@@ -343,18 +343,13 @@ function showLimits(region, province, commune) {
             limitesLayer = L.geoJSON(limits, {
                 style: function(feature) {
                     return {
-                        color: '#e74c3c',        // Rojo para los límites
+                        color: '#e74c3c',
                         weight: 2,
                         opacity: 0.8,
-                        fillColor: '#f39c12',   // Naranja suave para el relleno
-                        fillOpacity: 0.15
+                        fillOpacity: 0
                     };
                 },
-                onEachFeature: function(feature, layer) {
-                    const nombre = feature.properties.Comuna || feature.properties.nombre || 'Comuna';
-                    const popup = `<strong>${nombre}</strong><br>Comuna`;
-                    layer.bindPopup(popup);
-                }
+                interactive: false
             }).addTo(map);
             
             // Centrar el mapa automáticamente en los límites
@@ -463,9 +458,121 @@ function formatNumber(num) {
     return new Intl.NumberFormat('es-CL').format(num);
 }
 
+//=============== MESAS TERRITORIALES ===============//
+
+let mesasLayer = null;
+let mesasData = {};
+let mesasProyectosData = {};
+
+const mesaPanel = document.getElementById('mesaPanel');
+const closeMesaPanelBtn = document.getElementById('closeMesaPanel');
+
+closeMesaPanelBtn.addEventListener('click', () => {
+    mesaPanel.classList.remove('active');
+});
+
+async function loadMesasData() {
+    try {
+        const [mesasRes, proyectosRes] = await Promise.all([
+            fetch('./data/mesas_territoriales/mesas.geojson'),
+            fetch('./data/mesas_territoriales/proyectos.json')
+        ]);
+        const mesasGeoJSON = await mesasRes.json();
+        mesasProyectosData = await proyectosRes.json();
+
+        mesasGeoJSON.features.forEach(f => {
+            mesasData[f.properties.id] = f.properties;
+        });
+
+        displayMesasLayer(mesasGeoJSON);
+        console.log('✅ Mesas territoriales cargadas:', mesasGeoJSON.features.length);
+    } catch (error) {
+        console.error('Error cargando mesas territoriales:', error);
+    }
+}
+
+function displayMesasLayer(geojson) {
+    mesasLayer = L.geoJSON(geojson, {
+        pointToLayer: function(feature, latlng) {
+            return L.circleMarker(latlng, {
+                radius: 13,
+                fillColor: '#27ae60',
+                color: '#1e8449',
+                weight: 2.5,
+                opacity: 1,
+                fillOpacity: 0.9
+            });
+        },
+        onEachFeature: function(feature, layer) {
+            const p = feature.properties;
+            const actores = Array.isArray(p.actores) ? p.actores.join(', ') : p.actores;
+            const popupContent = `
+                <div class="popup-content">
+                    <h4>${p.nombre}</h4>
+                    <p><strong>Municipalidad:</strong> ${p.municipalidad}</p>
+                    <p><strong>Actores:</strong> ${actores}</p>
+                    <p><strong>Capital levantado:</strong> $${formatNumber(p.capital_levantado)}</p>
+                    <p><strong>Beneficiarios:</strong> ${p.beneficiarios}</p>
+                    <a href="#" class="popup-project-link"
+                       onclick="openMesaProjects('${p.id}'); return false;">
+                        Proyectos en la mesa
+                    </a>
+                </div>
+            `;
+            layer.bindPopup(popupContent, { maxWidth: 300 });
+        }
+    }).addTo(map);
+
+    layerControl.addOverlay(mesasLayer, 'Mesas Territoriales');
+}
+
+window.openMesaProjects = function(mesaId) {
+    const mesa = mesasData[mesaId];
+    const proyectos = mesasProyectosData[mesaId] || [];
+
+    document.getElementById('mesaPanelTitle').textContent = mesa.nombre;
+
+    const content = document.getElementById('mesaPanelContent');
+
+    if (proyectos.length === 0) {
+        content.innerHTML = '<p style="padding: 20px; color: #7f8c8d;">No hay proyectos registrados para esta mesa.</p>';
+    } else {
+        content.innerHTML = proyectos.map(p => `
+            <div class="mesa-project-card">
+                <div class="mesa-project-header">
+                    <span class="mesa-project-type">${p.tipo}</span>
+                    <span class="mesa-project-status status-${p.estado_key}">${p.estado}</span>
+                </div>
+                <h4>${p.nombre}</h4>
+                <p class="mesa-project-desc">${p.descripcion}</p>
+                <div class="mesa-project-stats">
+                    <div class="stat">
+                        <span class="stat-label">Monto</span>
+                        <span class="stat-value">$${formatNumber(p.monto)}</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Beneficiarios</span>
+                        <span class="stat-value">${p.beneficiarios}</span>
+                    </div>
+                </div>
+                <div class="mesa-project-dates">
+                    ${p.fecha_inicio} &rarr; ${p.fecha_termino}
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${p.avance}%"></div>
+                </div>
+                <span class="progress-label">${p.avance}% completado</span>
+            </div>
+        `).join('');
+    }
+
+    mesaPanel.classList.add('active');
+};
+
 //=============== CARGAR DATOS INICIALES ===============//
 
 loadData();
+loadMesasData();
 
 //=============== LEYENDA ===============//
 
@@ -474,11 +581,17 @@ const legend = L.control({ position: 'bottomright' });
 legend.onAdd = function(map) {
     var div = L.DomUtil.create('div', 'legend');
     div.innerHTML = `
-        <h4>Información</h4>
-        <p style="font-size: 12px; color: #555; margin: 5px 0;">
-            <strong>Huella Local</strong><br>
-            Visualización de proyectos comunitarios<br>
-            Selecciona región, provincia y comuna para ver los proyectos disponibles.
+        <h4>Referencia</h4>
+        <div class="legend-item">
+            <span class="legend-dot" style="background:#27ae60; border-color:#1e8449;"></span>
+            Mesa Territorial
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background:#3498db; border-color:#2980b9;"></span>
+            Proyecto
+        </div>
+        <p style="font-size: 11px; color: #7f8c8d; margin: 10px 0 0 0;">
+            Huella Local — Proyectos comunitarios
         </p>
     `;
     return div;

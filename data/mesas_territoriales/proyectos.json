@@ -1,0 +1,153 @@
+{
+  "mesa_001": [
+    {
+      "id": "proy_m1_001",
+      "nombre": "Mejoramiento Plaza Cívica Mejillones",
+      "tipo": "Infraestructura",
+      "estado": "En ejecución",
+      "estado_key": "ejecucion",
+      "monto": 18500000,
+      "beneficiarios": 120,
+      "avance": 65,
+      "descripcion": "Rehabilitación de la plaza central incluyendo pavimentación, iluminación LED y áreas verdes con especies nativas costeras.",
+      "fecha_inicio": "2025-02-01",
+      "fecha_termino": "2025-09-30"
+    },
+    {
+      "id": "proy_m1_002",
+      "nombre": "Programa de Emprendimiento Local",
+      "tipo": "Económico",
+      "estado": "En ejecución",
+      "estado_key": "ejecucion",
+      "monto": 15000000,
+      "beneficiarios": 85,
+      "avance": 40,
+      "descripcion": "Capacitación y financiamiento para emprendedoras y emprendedores locales del rubro gastronómico y artesanal.",
+      "fecha_inicio": "2025-03-15",
+      "fecha_termino": "2025-12-31"
+    },
+    {
+      "id": "proy_m1_003",
+      "nombre": "Huerto Comunitario Sector Litoral",
+      "tipo": "Medio Ambiente",
+      "estado": "Formulación",
+      "estado_key": "formulacion",
+      "monto": 15000000,
+      "beneficiarios": 115,
+      "avance": 10,
+      "descripcion": "Creación de huerto comunitario con especies nativas y talleres de educación ambiental para la comunidad escolar.",
+      "fecha_inicio": "2025-07-01",
+      "fecha_termino": "2026-03-31"
+    }
+  ],
+  "mesa_002": [
+    {
+      "id": "proy_m2_001",
+      "nombre": "Red de Ciclovías Sector Norte",
+      "tipo": "Movilidad",
+      "estado": "En ejecución",
+      "estado_key": "ejecucion",
+      "monto": 45000000,
+      "beneficiarios": 500,
+      "avance": 78,
+      "descripcion": "Construcción de ciclovía segregada de 3,2 km conectando los barrios norte con el centro de la ciudad.",
+      "fecha_inicio": "2024-11-01",
+      "fecha_termino": "2025-07-30"
+    },
+    {
+      "id": "proy_m2_002",
+      "nombre": "Centro de Reciclaje Comunitario",
+      "tipo": "Medio Ambiente",
+      "estado": "En ejecución",
+      "estado_key": "ejecucion",
+      "monto": 28000000,
+      "beneficiarios": 380,
+      "avance": 55,
+      "descripcion": "Instalación de punto limpio con sistema de clasificación y valorización de residuos sólidos domiciliarios.",
+      "fecha_inicio": "2025-01-10",
+      "fecha_termino": "2025-10-31"
+    },
+    {
+      "id": "proy_m2_003",
+      "nombre": "Escuela de Oficios Zona Sur",
+      "tipo": "Educación",
+      "estado": "Terminado",
+      "estado_key": "terminado",
+      "monto": 52000000,
+      "beneficiarios": 360,
+      "avance": 100,
+      "descripcion": "Programa de capacitación técnica en electricidad, gasfitería, soldadura y construcción para jóvenes desempleados.",
+      "fecha_inicio": "2024-08-01",
+      "fecha_termino": "2025-02-28"
+    }
+  ],
+  "mesa_003": [
+    {
+      "id": "proy_m3_001",
+      "nombre": "Senderos Patrimoniales Atacama",
+      "tipo": "Turismo",
+      "estado": "En ejecución",
+      "estado_key": "ejecucion",
+      "monto": 35000000,
+      "beneficiarios": 250,
+      "avance": 45,
+      "descripcion": "Habilitación de rutas de trekking con señalética bilingüe (español/kunza) para turismo cultural en el altiplano.",
+      "fecha_inicio": "2025-01-20",
+      "fecha_termino": "2025-11-30"
+    },
+    {
+      "id": "proy_m3_002",
+      "nombre": "Sistema de Riego Solar Valle",
+      "tipo": "Agricultura",
+      "estado": "Formulación",
+      "estado_key": "formulacion",
+      "monto": 52000000,
+      "beneficiarios": 400,
+      "avance": 20,
+      "descripcion": "Implementación de sistema de riego tecnificado con energía solar fotovoltaica para pequeños agricultores del valle.",
+      "fecha_inicio": "2025-08-01",
+      "fecha_termino": "2026-05-31"
+    }
+  ],
+  "mesa_004": [
+    {
+      "id": "proy_m4_001",
+      "nombre": "Recuperación Cauce Quebrada Las Palmas",
+      "tipo": "Medio Ambiente",
+      "estado": "En ejecución",
+      "estado_key": "ejecucion",
+      "monto": 28000000,
+      "beneficiarios": 180,
+      "avance": 30,
+      "descripcion": "Restauración ecológica del cauce y plantación de 500 árboles nativos para recuperación de biodiversidad local.",
+      "fecha_inicio": "2025-03-01",
+      "fecha_termino": "2025-12-15"
+    },
+    {
+      "id": "proy_m4_002",
+      "nombre": "Mercado Campesino Permanente",
+      "tipo": "Económico",
+      "estado": "En ejecución",
+      "estado_key": "ejecucion",
+      "monto": 22000000,
+      "beneficiarios": 200,
+      "avance": 60,
+      "descripcion": "Habilitación de espacio físico para feria permanente de productos locales y artesanía regional.",
+      "fecha_inicio": "2025-02-15",
+      "fecha_termino": "2025-08-31"
+    },
+    {
+      "id": "proy_m4_003",
+      "nombre": "Alfabetización Digital Adultos Mayores",
+      "tipo": "Educación",
+      "estado": "Terminado",
+      "estado_key": "terminado",
+      "monto": 12000000,
+      "beneficiarios": 100,
+      "avance": 100,
+      "descripcion": "Talleres de alfabetización digital para personas mayores de 60 años: smartphone, internet y trámites en línea.",
+      "fecha_inicio": "2024-10-01",
+      "fecha_termino": "2025-01-31"
+    }
+  ]
+}
