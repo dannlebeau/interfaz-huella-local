@@ -1,3 +1,14 @@
+//=============== FIRMA Y CLICK DERECHO ===============//
+// Bloquea el menú contextual (click derecho). No impide ver el código con
+// F12/Ctrl+U -- ningún sitio puede evitar eso -- pero saca el atajo directo.
+document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+console.log(
+    '%cHuella Local %c· Visualización de Proyectos en Chile\nConstruido por Dann LeBeau — https://dannlebeau.github.io/ownroute.github.io/',
+    'color:#3498db; font-weight:bold; font-size:14px;',
+    'color:#2c3e50; font-size:12px;'
+);
+
 //=============== INICIALIZACIÓN DEL MAPA ===============//
 
 // Centrar el mapa en Chile (-35.6751°, -71.5430°)
@@ -91,6 +102,7 @@ async function loadData() {
         extractDataFromGeoJSON();
 
         loadRegions();
+        renderGeneralStats();
 
         console.log('✅ Proyectos por comuna cargados:', Object.values(projectsByCommune).reduce((n, arr) => n + arr.length, 0));
     } catch (error) {
@@ -127,16 +139,22 @@ function reprojectCoordinates(coords, geomType) {
     return coords;
 }
 
+// Orden geográfico oficial de las regiones de Chile, de norte a sur
+// (codregion del GeoJSON). RM (13) no es correlativo por número pero sí por
+// posición geográfica, igual que Ñuble (16) y Los Ríos (14).
+const ORDEN_CODREGION = [15, 1, 2, 3, 4, 5, 13, 6, 7, 16, 8, 9, 14, 10, 11, 12];
+
 // Extraer regiones, provincias y comunas del Comunas.geojson
 function extractDataFromGeoJSON() {
     // Estructura de datos para la jerarquía
     regionesData = [];
     provinciasData = {};
     comunasData = {};
-    
+
     const regionesSet = new Set();
+    const codregionPorRegion = {};
     const provinciasSet = {};
-    
+
     if (window.comunasGeoJSON && window.comunasGeoJSON.features) {
         window.comunasGeoJSON.features.forEach(feature => {
             if (feature.properties) {
@@ -144,10 +162,13 @@ function extractDataFromGeoJSON() {
                 const provincia = feature.properties.Provincia;
                 const comuna = feature.properties.Comuna;
                 const geometry = feature.geometry;
-                
+
                 // Extraer regiones únicas
                 if (region) {
                     regionesSet.add(region);
+                    if (codregionPorRegion[region] === undefined) {
+                        codregionPorRegion[region] = feature.properties.codregion;
+                    }
                 }
                 
                 // Extraer provincias por región
@@ -181,8 +202,21 @@ function extractDataFromGeoJSON() {
         });
     }
     
-    // Convertir Sets a Arrays y ordenar
-    regionesData = Array.from(regionesSet).sort();
+    // Convertir Sets a Arrays y ordenar geográficamente (norte a sur), no
+    // alfabéticamente: un sort de texto pone "Región Metropolitana" antes que
+    // "Región de Antofagasta" (M mayúscula < d minúscula en ASCII).
+    // "Zona sin demarcar" es el límite internacional no demarcado del Campo de
+    // Hielo Sur (sin comunas ni proyectos posibles) — se omite del selector.
+    regionesSet.delete('Zona sin demarcar');
+
+    regionesData = Array.from(regionesSet).sort((a, b) => {
+        const posA = ORDEN_CODREGION.indexOf(codregionPorRegion[a]);
+        const posB = ORDEN_CODREGION.indexOf(codregionPorRegion[b]);
+        if (posA === -1 && posB === -1) return a.localeCompare(b);
+        if (posA === -1) return 1; // regiones sin codregion conocido (ej. "Zona sin demarcar") al final
+        if (posB === -1) return -1;
+        return posA - posB;
+    });
     
     Object.keys(provinciasData).forEach(region => {
         provinciasData[region] = Array.from(provinciasData[region]).sort();
@@ -478,6 +512,92 @@ function formatCantidad(valor) {
     return typeof valor === 'number' ? formatNumber(valor) : 'S/I';
 }
 
+// Orden Norte -> Austral para mostrar el desglose por zona siempre igual,
+// independiente del orden en que aparezcan en los datos.
+const ORDEN_ZONAS = ['Norte', 'Centro', 'Sur', 'Austral'];
+
+// Resumen general (no depende de ningún filtro): cantidad de proyectos por
+// zona y los proyectos geográficamente más extremos (más austral/más
+// septentrional), calculados sobre los 293 proyectos reales cargados.
+function renderGeneralStats() {
+    const statsPanel = document.getElementById('generalStats');
+    if (!statsPanel) return;
+
+    const todos = Object.entries(projectsByCommune).flatMap(([comuna, arr]) =>
+        arr.map(p => ({ ...p, comuna }))
+    );
+
+    if (todos.length === 0) {
+        statsPanel.innerHTML = '';
+        return;
+    }
+
+    const porZona = {};
+    todos.forEach(p => {
+        const zona = p.zona || 'S/I';
+        porZona[zona] = (porZona[zona] || 0) + 1;
+    });
+
+    const zonasOrdenadas = Object.keys(porZona).sort((a, b) => {
+        const posA = ORDEN_ZONAS.indexOf(a);
+        const posB = ORDEN_ZONAS.indexOf(b);
+        if (posA === -1 && posB === -1) return a.localeCompare(b);
+        if (posA === -1) return 1;
+        if (posB === -1) return -1;
+        return posA - posB;
+    });
+
+    const conCoordenadas = todos.filter(p => typeof p.lat === 'number' && typeof p.lng === 'number');
+    const masAustral = conCoordenadas.length
+        ? conCoordenadas.reduce((a, b) => (b.lat < a.lat ? b : a))
+        : null;
+    const masSeptentrional = conCoordenadas.length
+        ? conCoordenadas.reduce((a, b) => (b.lat > a.lat ? b : a))
+        : null;
+
+    const porComuna = {};
+    Object.entries(projectsByCommune).forEach(([comuna, arr]) => {
+        if (comuna !== '__sin_comuna__') porComuna[comuna] = arr.length;
+    });
+    const [comunaTop, cantidadTop] = Object.entries(porComuna).sort((a, b) => b[1] - a[1])[0] || [null, 0];
+
+    const zonasHtml = zonasOrdenadas.map(zona => `
+        <div class="zona-row">
+            <span class="zona-label">${zona}</span>
+            <span class="zona-count">${porZona[zona]}</span>
+        </div>
+    `).join('');
+
+    const extremoHtml = (titulo, proyecto) => {
+        if (!proyecto) return '';
+        return `
+            <div class="stat-highlight" data-project-id="${proyecto.id}">
+                <span class="stat-highlight-label">${titulo}</span>
+                <strong>${proyecto.name}</strong>
+                <small>${proyecto.comuna}</small>
+            </div>
+        `;
+    };
+
+    statsPanel.innerHTML = `
+        <h3>Resumen general</h3>
+        <div class="general-stats-total">${todos.length} proyectos en ${Object.keys(porComuna).length} comunas</div>
+        <div class="zona-breakdown">${zonasHtml}</div>
+        <div class="stats-highlights">
+            ${extremoHtml('Proyecto más austral', masAustral)}
+            ${extremoHtml('Proyecto más septentrional', masSeptentrional)}
+        </div>
+        ${comunaTop ? `<div class="stat-highlight"><span class="stat-highlight-label">Comuna con más proyectos</span><strong>${comunaTop}</strong><small>${cantidadTop} proyectos</small></div>` : ''}
+    `;
+
+    statsPanel.querySelectorAll('.stat-highlight[data-project-id]').forEach(el => {
+        el.addEventListener('click', () => {
+            const proyecto = todos.find(p => p.id === el.dataset.projectId);
+            if (proyecto) centerOnProject(proyecto);
+        });
+    });
+}
+
 //=============== MESAS TERRITORIALES ===============//
 
 let mesasLayer = null;
@@ -612,6 +732,9 @@ legend.onAdd = function(map) {
         </div>
         <p style="font-size: 11px; color: #7f8c8d; margin: 10px 0 0 0;">
             Huella Local — Proyectos comunitarios
+        </p>
+        <p style="font-size: 10px; color: #95a5a6; margin: 4px 0 0 0;">
+            Construido por <a href="https://dannlebeau.github.io/ownroute.github.io/" target="_blank" rel="noopener" style="color:#3498db;">Dann LeBeau</a> © 2026
         </p>
     `;
     return div;
