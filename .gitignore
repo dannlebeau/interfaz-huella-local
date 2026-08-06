@@ -1,2 +1,3 @@
-# Archivos pesados (subir manualmente después)
-data/Comunas.geojson
+# Respaldo sin simplificar de Comunas.geojson (215MB, ver scripts/simplificar_comunas.py).
+# data/Comunas.geojson SÍ se versiona: ya simplificado a ~14MB, es viable en git normal.
+data/Comunas_full.geojson

@@ -80,6 +80,7 @@ let projectMarkers = {}; // Almacenar markers de proyectos
 let regionesData = {};
 let provinciasData = {};
 let comunasData = {};
+let comunaInfo = {}; // comuna -> { region, provincia }, para aplicar filtros desde el resumen general
 let limitesLayer = null; // Capa de límites
 let projectsByCommune = {}; // Almacenar proyectos por comuna
 
@@ -150,6 +151,7 @@ function extractDataFromGeoJSON() {
     regionesData = [];
     provinciasData = {};
     comunasData = {};
+    comunaInfo = {};
 
     const regionesSet = new Set();
     const codregionPorRegion = {};
@@ -183,6 +185,10 @@ function extractDataFromGeoJSON() {
                 if (provincia && comuna) {
                     if (!comunasData[provincia]) {
                         comunasData[provincia] = [];
+                    }
+
+                    if (!comunaInfo[comuna]) {
+                        comunaInfo[comuna] = { region, provincia };
                     }
                     
                     // Obtener centroide de la geometría
@@ -408,6 +414,25 @@ function clearLimits() {
     }
 }
 
+// Aplica Región/Provincia/Comuna en los selects y muestra sus proyectos,
+// igual que si el usuario los hubiera elegido a mano y apretado "Aceptar".
+// Se usa desde el resumen general al pinchar un dato clave o la comuna con
+// más proyectos, para que el punto Y sus filtros queden sincronizados.
+function aplicarFiltrosPorComuna(comuna) {
+    const info = comunaInfo[comuna];
+    if (!info) return false;
+
+    regionSelect.value = info.region;
+    regionSelect.dispatchEvent(new Event('change'));
+    provinceSelect.value = info.provincia;
+    provinceSelect.dispatchEvent(new Event('change'));
+    communeSelect.value = comuna;
+
+    showLimits(info.region, info.provincia, comuna);
+    displayProjectsForCommune(comuna);
+    return true;
+}
+
 function displayProjectsForCommune(commune) {
     const projectsList = document.getElementById('projectsList');
     projectsList.innerHTML = '';
@@ -548,11 +573,23 @@ function renderGeneralStats() {
     });
 
     const conCoordenadas = todos.filter(p => typeof p.lat === 'number' && typeof p.lng === 'number');
-    const masAustral = conCoordenadas.length
-        ? conCoordenadas.reduce((a, b) => (b.lat < a.lat ? b : a))
-        : null;
-    const masSeptentrional = conCoordenadas.length
-        ? conCoordenadas.reduce((a, b) => (b.lat > a.lat ? b : a))
+    const extremo = (comparador) => (conCoordenadas.length ? conCoordenadas.reduce(comparador) : null);
+
+    // Lat: mas negativo = mas al sur (austral); menos negativo = mas al norte.
+    const masAustral = extremo((a, b) => (b.lat < a.lat ? b : a));
+    const masSeptentrional = extremo((a, b) => (b.lat > a.lat ? b : a));
+    // Lng: en Chile, mas negativo (hacia -76) = mas cerca de la costa;
+    // menos negativo (hacia -66) = mas cerca de la cordillera/frontera.
+    const masCordillerano = extremo((a, b) => (b.lng > a.lng ? b : a));
+    const masCostero = extremo((a, b) => (b.lng < a.lng ? b : a));
+
+    const conMontoValido = conCoordenadas.filter(p => typeof p.monto === 'number');
+    const masCaro = conMontoValido.length ? conMontoValido.reduce((a, b) => (b.monto > a.monto ? b : a)) : null;
+    const masBarato = conMontoValido.length ? conMontoValido.reduce((a, b) => (b.monto < a.monto ? b : a)) : null;
+
+    const conBeneficiariosValido = conCoordenadas.filter(p => typeof p.participantes === 'number');
+    const masBeneficiarios = conBeneficiariosValido.length
+        ? conBeneficiariosValido.reduce((a, b) => (b.participantes > a.participantes ? b : a))
         : null;
 
     const porComuna = {};
@@ -568,13 +605,13 @@ function renderGeneralStats() {
         </div>
     `).join('');
 
-    const extremoHtml = (titulo, proyecto) => {
+    const extremoHtml = (titulo, proyecto, valorExtra) => {
         if (!proyecto) return '';
         return `
             <div class="stat-highlight" data-project-id="${proyecto.id}">
                 <span class="stat-highlight-label">${titulo}</span>
                 <strong>${proyecto.name}</strong>
-                <small>${proyecto.comuna}</small>
+                <small>${proyecto.comuna}${valorExtra ? ' · ' + valorExtra : ''}</small>
             </div>
         `;
     };
@@ -583,17 +620,35 @@ function renderGeneralStats() {
         <h3>Resumen general</h3>
         <div class="general-stats-total">${todos.length} proyectos en ${Object.keys(porComuna).length} comunas</div>
         <div class="zona-breakdown">${zonasHtml}</div>
+        <h4 class="stats-subtitle">Datos clave</h4>
         <div class="stats-highlights">
-            ${extremoHtml('Proyecto más austral', masAustral)}
-            ${extremoHtml('Proyecto más septentrional', masSeptentrional)}
+            ${extremoHtml('Más austral', masAustral)}
+            ${extremoHtml('Más septentrional', masSeptentrional)}
+            ${extremoHtml('Más cordillerano', masCordillerano)}
+            ${extremoHtml('Más costero', masCostero)}
+            ${extremoHtml('Más beneficiarios', masBeneficiarios, masBeneficiarios ? `${formatCantidad(masBeneficiarios.participantes)} benef.` : '')}
+            ${extremoHtml('Más caro', masCaro, masCaro ? formatMonto(masCaro.monto) : '')}
+            ${extremoHtml('Más barato', masBarato, masBarato ? formatMonto(masBarato.monto) : '')}
+            ${comunaTop ? `<div class="stat-highlight" data-comuna="${comunaTop}"><span class="stat-highlight-label">Comuna con más proyectos</span><strong>${comunaTop}</strong><small>${cantidadTop} proyectos</small></div>` : ''}
         </div>
-        ${comunaTop ? `<div class="stat-highlight"><span class="stat-highlight-label">Comuna con más proyectos</span><strong>${comunaTop}</strong><small>${cantidadTop} proyectos</small></div>` : ''}
     `;
 
+    // Al pinchar un dato clave: sincroniza Región/Provincia/Comuna en los
+    // filtros (igual que si se hubieran elegido a mano) y muestra el punto.
     statsPanel.querySelectorAll('.stat-highlight[data-project-id]').forEach(el => {
         el.addEventListener('click', () => {
             const proyecto = todos.find(p => p.id === el.dataset.projectId);
-            if (proyecto) centerOnProject(proyecto);
+            if (!proyecto) return;
+            aplicarFiltrosPorComuna(proyecto.comuna);
+            centerOnProject(proyecto);
+        });
+    });
+
+    statsPanel.querySelectorAll('.stat-highlight[data-comuna]').forEach(el => {
+        el.addEventListener('click', () => {
+            if (aplicarFiltrosPorComuna(el.dataset.comuna)) {
+                sidebar.classList.remove('active');
+            }
         });
     });
 }

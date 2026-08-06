@@ -1,3 +1,69 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:e067a45619d5cc013c40f40d1551c622371924cbbad62980b603e79796191e1a
-size 2017
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-70.4183, -23.0986]
+      },
+      "properties": {
+        "id": "mesa_001",
+        "nombre": "Mesa Territorial Mejillones",
+        "municipalidad": "Mejillones",
+        "region": "Antofagasta",
+        "actores": ["Municipalidad de Mejillones", "CONAF", "INDAP", "Vecinos Unidos Mejillones", "Cámara de Comercio"],
+        "capital_levantado": 48500000,
+        "beneficiarios": 320
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-70.3954, -23.6524]
+      },
+      "properties": {
+        "id": "mesa_002",
+        "nombre": "Mesa Territorial Antofagasta",
+        "municipalidad": "Antofagasta",
+        "region": "Antofagasta",
+        "actores": ["Municipalidad de Antofagasta", "SERNAC", "FOSIS", "Junta de Vecinos Norte", "Junta de Vecinos Sur"],
+        "capital_levantado": 125000000,
+        "beneficiarios": 1240
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-68.9248, -22.4559]
+      },
+      "properties": {
+        "id": "mesa_003",
+        "nombre": "Mesa Territorial Calama",
+        "municipalidad": "Calama",
+        "region": "Antofagasta",
+        "actores": ["Municipalidad de Calama", "CODELCO", "CONAF", "Atacameños del Norte"],
+        "capital_levantado": 87000000,
+        "beneficiarios": 650
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-71.2519, -29.9027]
+      },
+      "properties": {
+        "id": "mesa_004",
+        "nombre": "Mesa Territorial La Serena",
+        "municipalidad": "La Serena",
+        "region": "Coquimbo",
+        "actores": ["Municipalidad de La Serena", "SEREMI Medio Ambiente", "INDAP", "Comunidades Agrícolas"],
+        "capital_levantado": 62000000,
+        "beneficiarios": 480
+      }
+    }
+  ]
+}
