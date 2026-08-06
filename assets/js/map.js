@@ -75,17 +75,24 @@ let projectsByCommune = {}; // Almacenar proyectos por comuna
 // Cargar datos desde Comunas.geojson
 async function loadData() {
     try {
-        // Cargar solo el GeoJSON de Comunas (contiene toda la jerarquía)
-        const comunasGeoJSON = await fetch('./data/Comunas.geojson');
+        // Cargar el GeoJSON de Comunas (contiene toda la jerarquía) y los
+        // proyectos por comuna en paralelo
+        const [comunasGeoJSON, proyectosRes] = await Promise.all([
+            fetch('./data/Comunas.geojson'),
+            fetch('./data/proyectos_comunas.json'),
+        ]);
         window.comunasGeoJSON = await comunasGeoJSON.json();
-        
+        projectsByCommune = await proyectosRes.json();
+
         // Reproject desde Web Mercator a WGS84
         reprojectGeoJSON(window.comunasGeoJSON);
-        
+
         // Extraer datos únicos del GeoJSON
         extractDataFromGeoJSON();
-        
+
         loadRegions();
+
+        console.log('✅ Proyectos por comuna cargados:', Object.values(projectsByCommune).reduce((n, arr) => n + arr.length, 0));
     } catch (error) {
         console.error('Error al cargar datos:', error);
     }
@@ -385,13 +392,13 @@ function displayProjectsForCommune(commune) {
         const projectItem = document.createElement('div');
         projectItem.className = 'project-item';
         projectItem.innerHTML = `
-            <strong>${project.name}</strong>
-            <small>Monto: $${formatNumber(project.monto)}</small>
-            <small>Participantes: ${project.participantes}</small>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: ${project.avance}%"></div>
+            <div class="mesa-project-header" style="margin-bottom:4px;">
+                <span class="mesa-project-type">${project.tipo}</span>
+                <span class="mesa-project-status status-${project.estado_key}">${project.estado}</span>
             </div>
-            <small style="color: #3498db;">${project.avance}% completado</small>
+            <strong>${project.name}</strong>
+            <small>Monto: ${formatMonto(project.monto)}</small>
+            <small>Beneficiarios: ${formatCantidad(project.participantes)}</small>
         `;
         
         projectItem.addEventListener('click', () => {
@@ -418,13 +425,16 @@ function addProjectMarker(project) {
     // Crear popup con información detallada
     const popupContent = `
         <div class="popup-content">
-            <h4>${project.name}</h4>
-            <p><strong>Monto:</strong> $${formatNumber(project.monto)}</p>
-            <p><strong>Participantes:</strong> ${project.participantes}</p>
-            <p><strong>Avance:</strong> ${project.avance}%</p>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: ${project.avance}%"></div>
+            <div class="mesa-project-header" style="margin-bottom:6px;">
+                <span class="mesa-project-type">${project.tipo}</span>
+                <span class="mesa-project-status status-${project.estado_key}">${project.estado}</span>
             </div>
+            <h4>${project.name}</h4>
+            <p><strong>Monto:</strong> ${formatMonto(project.monto)}</p>
+            <p><strong>Beneficiarios:</strong> ${formatCantidad(project.participantes)}</p>
+            <p><strong>Región:</strong> ${project.region} &middot; <strong>Zona:</strong> ${project.zona}</p>
+            <p><strong>Fechas:</strong> ${project.fecha_inicio} &rarr; ${project.fecha_termino}</p>
+            ${project.ubicacion_aproximada ? '<p style="color:#b7950b;"><em>Ubicación aproximada (centro de la comuna, sin coordenada exacta en la fuente).</em></p>' : ''}
         </div>
     `;
     
@@ -456,6 +466,16 @@ function clearProjectMarkers() {
 
 function formatNumber(num) {
     return new Intl.NumberFormat('es-CL').format(num);
+}
+
+// Los proyectos reales traen "S/I" (sin información) en vez de un número
+// cuando el dato no existía en la fuente — no se inventa un valor.
+function formatMonto(valor) {
+    return typeof valor === 'number' ? `$${formatNumber(valor)}` : 'S/I';
+}
+
+function formatCantidad(valor) {
+    return typeof valor === 'number' ? formatNumber(valor) : 'S/I';
 }
 
 //=============== MESAS TERRITORIALES ===============//

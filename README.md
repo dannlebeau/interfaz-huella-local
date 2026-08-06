@@ -6,11 +6,17 @@ Aplicación interactiva para visualizar proyectos comunitarios de Huella Local e
 
 ```
 interfaz_huella_local/
-├── index.html              # Página principal
+├── index.html                          # Página principal
 ├── data/
-│   ├── regiones.json      # Datos de regiones de Chile
-│   ├── provincias.json    # Datos de provincias por región
-│   └── comunas.json       # Datos de comunas por provincia
+│   ├── Comunas.geojson                # Límites y jerarquía Región/Provincia/Comuna
+│   │                                     (regiones, provincias y comunas se extraen
+│   │                                     de acá en tiempo real, no hay JSON aparte)
+│   ├── proyectos_comunas.json         # 293 proyectos reales, agrupados por comuna
+│   │                                     (fuente: Resumen_proyectos.xlsx de Huella Local)
+│   └── mesas_territoriales/
+│       ├── mesas.geojson              # Mesas territoriales (datos de ejemplo:
+│       │                                 las mesas reales todavía no están definidas)
+│       └── proyectos.json             # Proyectos de ejemplo por mesa
 ├── assets/
 │   ├── css/
 │   │   └── style.css      # Estilos de la aplicación
@@ -42,71 +48,56 @@ interfaz_huella_local/
 
 ## 📊 Estructura de Datos
 
-### regiones.json
+### proyectos_comunas.json
+
+Agrupado por comuna (el nombre debe calzar exacto con la propiedad `Comuna` de
+`Comunas.geojson`). Los proyectos sin comuna real identificable en la fuente
+(por ejemplo, un estudio a nivel regional) quedan bajo la clave especial
+`__sin_comuna__` en vez de perderse. Cuando la fuente no traía un dato, el
+campo queda como el string `"S/I"` en lugar de inventarlo; cuando no traía
+coordenadas válidas, se usa el centroide de la comuna como ubicación
+aproximada y `ubicacion_aproximada` queda en `true`.
+
 ```json
 {
-  "regiones": [
+  "Mejillones": [
     {
-      "id": 1,
-      "nombre": "Región de Arica y Parinacota",
-      "lat": -18.4783,
-      "lng": -70.2990
+      "id": "MEJ 22_03 EQC",
+      "name": "Prefactibilidad Construcción Terminal de Buses",
+      "tipo": "Equipamiento",
+      "estado": "Desarrollo",
+      "estado_key": "desarrollo",
+      "monto": 3232569800,
+      "aportes_diseno": 159650000,
+      "participantes": "S/I",
+      "fecha_inicio": "S/I",
+      "fecha_termino": "S/I",
+      "region": "Antofagasta",
+      "zona": "Norte",
+      "convenio": "Vigente",
+      "lat": -23.110747,
+      "lng": -70.450211,
+      "ubicacion_aproximada": false
     }
   ]
 }
 ```
 
-### provincias.json
-```json
-{
-  "provincias": {
-    "Región de Arica y Parinacota": [
-      {
-        "id": 1,
-        "nombre": "Arica",
-        "lat": -18.4783,
-        "lng": -70.2990
-      }
-    ]
-  }
-}
-```
+### mesas_territoriales/
 
-### comunas.json
-```json
-{
-  "comunas": {
-    "Arica": [
-      {
-        "id": 1,
-        "nombre": "Arica",
-        "lat": -18.4783,
-        "lng": -70.2990
-      }
-    ]
-  }
-}
-```
+Estructura equivalente pero por mesa territorial en vez de por comuna —
+todavía con datos de ejemplo, porque las mesas reales no están definidas.
+Cuando se definan, conviene regenerarlas con el mismo criterio (nada
+inventado, `"S/I"` para lo que falte) que `proyectos_comunas.json`.
 
 ## 🔧 Personalización
 
-### Agregar nuevos proyectos
+### Agregar o actualizar proyectos
 
-Edita la sección `projectsByCommune` en `assets/js/map.js`:
-
-```javascript
-"NombreComuna": [
-    {
-        id: 1,
-        name: "Nombre del Proyecto",
-        monto: 1000000,        // Monto en CLP
-        participantes: 50,      // Cantidad de participantes
-        avance: 75,             // Porcentaje de avance (0-100)
-        lat: -23.1061,          // Latitud
-        lng: -70.4608           // Longitud
-    }
-]
-```
+Editar `data/proyectos_comunas.json` directamente (agrupado por comuna, ver
+estructura arriba), o volver a exportar desde el Excel fuente y regenerar el
+archivo con el mismo criterio: nada de datos inventados, `"S/I"` para lo que
+falte.
 
 ### Cambiar estilos
 

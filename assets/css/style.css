@@ -377,6 +377,47 @@ body, html {
     color: #1a5276;
 }
 
+/* Estados de la cartera real de proyectos (Resumen_proyectos.xlsx) */
+.status-entregado {
+    background: #d4efdf;
+    color: #1d8348;
+}
+
+.status-desarrollo {
+    background: #eaf2fd;
+    color: #2471a3;
+}
+
+.status-postulado {
+    background: #fdebd0;
+    color: #b9770e;
+}
+
+.status-financiado {
+    background: #e8daef;
+    color: #6c3483;
+}
+
+.status-aprobado {
+    background: #d1f2eb;
+    color: #0e6655;
+}
+
+.status-evaluacion {
+    background: #fdedec;
+    color: #922b21;
+}
+
+.status-cerrado {
+    background: #ecf0f1;
+    color: #566573;
+}
+
+.status-sin-info {
+    background: #f4f6f7;
+    color: #909497;
+}
+
 .mesa-project-card h4 {
     margin: 0 0 6px 0;
     color: #2c3e50;
