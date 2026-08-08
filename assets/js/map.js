@@ -14,27 +14,57 @@ console.log(
 // Centrar el mapa en Chile (-35.6751°, -71.5430°)
 var map = L.map('map').setView([-35.6751, -71.5430], 4);
 
-// Capas base del mapa
+// Capas base del mapa. Todas permiten zoom hasta 19 en el mapa (para poder
+// acercarse a un proyecto puntual): cuando el proveedor no tiene imágenes
+// nativas a ese nivel, `maxNativeZoom` hace que Leaflet reescale el último
+// tile disponible en vez de pedir uno inexistente -- eso es lo que evita el
+// cartel "Map data not yet available" de Esri World Imagery en zonas rurales.
+var cartoDBPositronLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+    attribution: '© CartoDB, © OpenStreetMap',
+    maxZoom: 19
+});
+
 var openStreetMapLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18,
+    maxZoom: 19,
     attribution: '© OpenStreetMap'
 });
 
-var cartoDBPositronLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-    attribution: '© CartoDB',
+var cartoDBDarkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+    attribution: '© CartoDB, © OpenStreetMap',
     maxZoom: 19
 });
 
 var esriWorldImageryLayer = L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles © Esri',
-    maxZoom: 18
-}).addTo(map);
+    maxZoom: 19,
+    maxNativeZoom: 17
+});
+
+var esriWorldTopoLayer = L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri',
+    maxZoom: 19,
+    maxNativeZoom: 18
+});
+
+var openTopoMapLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenTopoMap (CC-BY-SA), © OpenStreetMap',
+    maxZoom: 19,
+    maxNativeZoom: 17
+});
+
+// Capa por defecto: Positron, porque siempre renderiza bien a cualquier
+// zoom (a diferencia de la imagen satelital, que en zonas rurales de Chile
+// no siempre tiene resolución nativa hasta el zoom de un proyecto puntual).
+cartoDBPositronLayer.addTo(map);
 
 // Control de capas
 var baseMaps = {
-    "OpenStreetMap": openStreetMapLayer,
     "CartoDB Positron": cartoDBPositronLayer,
-    "ESRI Imagery": esriWorldImageryLayer,
+    "OpenStreetMap": openStreetMapLayer,
+    "CartoDB Oscuro": cartoDBDarkLayer,
+    "Esri Satelital": esriWorldImageryLayer,
+    "Esri Topográfico": esriWorldTopoLayer,
+    "OpenTopoMap": openTopoMapLayer,
 };
 
 var layerControl = L.control.layers(baseMaps, null, { position: 'topright', collapsed: true }).addTo(map);
@@ -43,6 +73,20 @@ var layerControl = L.control.layers(baseMaps, null, { position: 'topright', coll
 var zoomControl = L.control.zoom({ position: 'topright' });
 map.removeControl(map.zoomControl); // Remover el zoom por defecto
 zoomControl.addTo(map);
+
+//=============== PANTALLA DE BIENVENIDA ===============//
+
+const welcomeSplash = document.getElementById('welcomeSplash');
+
+function closeWelcomeSplash() {
+    welcomeSplash.classList.add('hidden');
+}
+
+welcomeSplash.addEventListener('click', closeWelcomeSplash);
+document.getElementById('welcomeEnter').addEventListener('click', (e) => {
+    e.stopPropagation(); // evita el doble disparo con el click del overlay
+    closeWelcomeSplash();
+});
 
 //=============== CONTROL DE SIDEBAR ===============//
 
@@ -84,6 +128,12 @@ let comunaInfo = {}; // comuna -> { region, provincia }, para aplicar filtros de
 let limitesLayer = null; // Capa de límites
 let projectsByCommune = {}; // Almacenar proyectos por comuna
 
+// Fotos por proyecto (id -> arreglo de 3 rutas en /img). Un proyecto sin
+// entrada acá simplemente no muestra el link "Ver fotos".
+const PROJECT_PHOTOS = {
+    'MEJ 22_06 PLA': ['img/foto1.jpeg', 'img/foto2.jpeg', 'img/foto3.jpeg'] // Mejoramiento Plaza de Los Profesores
+};
+
 // Cargar datos desde Comunas.geojson
 async function loadData() {
     try {
@@ -104,6 +154,7 @@ async function loadData() {
 
         loadRegions();
         renderGeneralStats();
+        renderProjects(getAllProjects());
 
         console.log('✅ Proyectos por comuna cargados:', Object.values(projectsByCommune).reduce((n, arr) => n + arr.length, 0));
     } catch (error) {
@@ -329,15 +380,10 @@ applyBtn.addEventListener('click', function() {
     
     // Mostrar límites de la selección (región, provincia o comuna)
     showLimits(selectedRegion, selectedProvince, selectedCommune);
-    
-    // Mostrar proyectos si seleccionó comuna
-    if (selectedCommune) {
-        displayProjectsForCommune(selectedCommune);
-    } else {
-        document.getElementById('projectsList').innerHTML = '';
-        clearProjectMarkers();
-    }
-    
+
+    // Mostrar los proyectos que calzan con el filtro elegido
+    renderProjects(getFilteredProjects(selectedRegion, selectedProvince, selectedCommune));
+
     sidebar.classList.remove('active');
 });
 
@@ -350,12 +396,11 @@ resetBtn.addEventListener('click', function() {
     communeSelect.value = '';
     communeSelect.innerHTML = '<option value="">-- Seleccionar Comuna --</option>';
     communeSelect.disabled = true;
-    
-    // Limpiar proyectos mostrados
-    document.getElementById('projectsList').innerHTML = '';
-    clearProjectMarkers();
+
+    // Volver a mostrar todos los proyectos
+    renderProjects(getAllProjects());
     clearLimits();
-    
+
     // Centrar en Chile
     map.setView([-35.6751, -71.5430], 4);
 });
@@ -429,24 +474,44 @@ function aplicarFiltrosPorComuna(comuna) {
     communeSelect.value = comuna;
 
     showLimits(info.region, info.provincia, comuna);
-    displayProjectsForCommune(comuna);
+    renderProjects(getFilteredProjects(info.region, info.provincia, comuna));
     return true;
 }
 
-function displayProjectsForCommune(commune) {
+// Todos los proyectos reales, aplanados desde projectsByCommune y con la
+// comuna incluida en cada proyecto (útil para filtrar/agrupar).
+function getAllProjects() {
+    return Object.entries(projectsByCommune).flatMap(([comuna, arr]) =>
+        arr.map(p => ({ ...p, comuna }))
+    );
+}
+
+// Filtra los proyectos según el nivel de filtro elegido (comuna > provincia > región).
+function getFilteredProjects(region, province, commune) {
+    return getAllProjects().filter(p => {
+        if (commune) return p.comuna === commune;
+        const info = comunaInfo[p.comuna];
+        if (!info) return false;
+        if (province) return info.provincia === province;
+        return info.region === region;
+    });
+}
+
+// Pinta la lista en el sidebar y los markers en el mapa para un conjunto de proyectos.
+function renderProjects(projects) {
     const projectsList = document.getElementById('projectsList');
     projectsList.innerHTML = '';
-    
+
     clearProjectMarkers();
-    
-    const projects = projectsByCommune[commune] || [];
-    
+
     if (projects.length === 0) {
-        projectsList.innerHTML = '<div style="padding: 15px; color: #7f8c8d;">No hay proyectos en esta comuna</div>';
+        projectsList.innerHTML = '<div style="padding: 15px; color: #7f8c8d;">No hay proyectos en esta selección</div>';
         return;
     }
-    
+
     projects.forEach(project => {
+        const tienePhotos = !!PROJECT_PHOTOS[project.id];
+
         // Agregar a lista en sidebar
         const projectItem = document.createElement('div');
         projectItem.className = 'project-item';
@@ -458,20 +523,31 @@ function displayProjectsForCommune(commune) {
             <strong>${project.name}</strong>
             <small>Monto: ${formatMonto(project.monto)}</small>
             <small>Beneficiarios: ${formatCantidad(project.participantes)}</small>
+            ${tienePhotos ? '<a href="#" class="project-photos-link">📷 Ver fotos</a>' : ''}
         `;
-        
+
         projectItem.addEventListener('click', () => {
             centerOnProject(project);
         });
-        
+
+        if (tienePhotos) {
+            projectItem.querySelector('.project-photos-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openPhotoCarousel(project.id);
+            });
+        }
+
         projectsList.appendChild(projectItem);
-        
-        // Agregar marker en el mapa
+
+        // Agregar marker en el mapa (si el proyecto trae coordenadas)
         addProjectMarker(project);
     });
 }
 
 function addProjectMarker(project) {
+    if (typeof project.lat !== 'number' || typeof project.lng !== 'number') return;
+
     const marker = L.circleMarker([project.lat, project.lng], {
         radius: 8,
         fillColor: '#3498db',
@@ -494,25 +570,28 @@ function addProjectMarker(project) {
             <p><strong>Región:</strong> ${project.region} &middot; <strong>Zona:</strong> ${project.zona}</p>
             <p><strong>Fechas:</strong> ${project.fecha_inicio} &rarr; ${project.fecha_termino}</p>
             ${project.ubicacion_aproximada ? '<p style="color:#b7950b;"><em>Ubicación aproximada (centro de la comuna, sin coordenada exacta en la fuente).</em></p>' : ''}
+            ${PROJECT_PHOTOS[project.id] ? `<a href="#" class="popup-project-link" onclick="openPhotoCarousel('${project.id}'); return false;">📷 Ver fotos</a>` : ''}
         </div>
     `;
-    
+
     marker.bindPopup(popupContent);
     marker.on('click', function() {
-        this.openPopup();
+        // Al pinchar un proyecto en el mapa, hacer zoom in y centrarlo (igual
+        // que al elegirlo desde el sidebar), no solo abrir el popup.
+        centerOnProject(project);
     });
-    
+
     projectMarkers[project.id] = marker;
 }
 
 function centerOnProject(project) {
-    map.setView([project.lat, project.lng], 14);
-    
+    map.setView([project.lat, project.lng], 16);
+
     // Abrir popup del marcador
     if (projectMarkers[project.id]) {
         projectMarkers[project.id].openPopup();
     }
-    
+
     sidebar.classList.remove('active');
 }
 
@@ -548,9 +627,7 @@ function renderGeneralStats() {
     const statsPanel = document.getElementById('generalStats');
     if (!statsPanel) return;
 
-    const todos = Object.entries(projectsByCommune).flatMap(([comuna, arr]) =>
-        arr.map(p => ({ ...p, comuna }))
-    );
+    const todos = getAllProjects();
 
     if (todos.length === 0) {
         statsPanel.innerHTML = '';
@@ -653,121 +730,56 @@ function renderGeneralStats() {
     });
 }
 
-//=============== MESAS TERRITORIALES ===============//
+//=============== CARRUSEL DE FOTOS ===============//
 
-let mesasLayer = null;
-let mesasData = {};
-let mesasProyectosData = {};
+const photoModal = document.getElementById('photoModal');
+const photoModalImg = document.getElementById('photoModalImg');
+const photoModalCounter = document.getElementById('photoModalCounter');
 
-const mesaPanel = document.getElementById('mesaPanel');
-const closeMesaPanelBtn = document.getElementById('closeMesaPanel');
+let currentPhotoSet = [];
+let currentPhotoIndex = 0;
 
-closeMesaPanelBtn.addEventListener('click', () => {
-    mesaPanel.classList.remove('active');
-});
-
-async function loadMesasData() {
-    try {
-        const [mesasRes, proyectosRes] = await Promise.all([
-            fetch('./data/mesas_territoriales/mesas.geojson'),
-            fetch('./data/mesas_territoriales/proyectos.json')
-        ]);
-        const mesasGeoJSON = await mesasRes.json();
-        mesasProyectosData = await proyectosRes.json();
-
-        mesasGeoJSON.features.forEach(f => {
-            mesasData[f.properties.id] = f.properties;
-        });
-
-        displayMesasLayer(mesasGeoJSON);
-        console.log('✅ Mesas territoriales cargadas:', mesasGeoJSON.features.length);
-    } catch (error) {
-        console.error('Error cargando mesas territoriales:', error);
-    }
+function renderCarouselPhoto() {
+    photoModalImg.src = currentPhotoSet[currentPhotoIndex];
+    photoModalCounter.textContent = `${currentPhotoIndex + 1} / ${currentPhotoSet.length}`;
 }
 
-function displayMesasLayer(geojson) {
-    mesasLayer = L.geoJSON(geojson, {
-        pointToLayer: function(feature, latlng) {
-            return L.circleMarker(latlng, {
-                radius: 13,
-                fillColor: '#27ae60',
-                color: '#1e8449',
-                weight: 2.5,
-                opacity: 1,
-                fillOpacity: 0.9
-            });
-        },
-        onEachFeature: function(feature, layer) {
-            const p = feature.properties;
-            const actores = Array.isArray(p.actores) ? p.actores.join(', ') : p.actores;
-            const popupContent = `
-                <div class="popup-content">
-                    <h4>${p.nombre}</h4>
-                    <p><strong>Municipalidad:</strong> ${p.municipalidad}</p>
-                    <p><strong>Actores:</strong> ${actores}</p>
-                    <p><strong>Capital levantado:</strong> $${formatNumber(p.capital_levantado)}</p>
-                    <p><strong>Beneficiarios:</strong> ${p.beneficiarios}</p>
-                    <a href="#" class="popup-project-link"
-                       onclick="openMesaProjects('${p.id}'); return false;">
-                        Proyectos en la mesa
-                    </a>
-                </div>
-            `;
-            layer.bindPopup(popupContent, { maxWidth: 300 });
-        }
-    }).addTo(map);
+window.openPhotoCarousel = function(projectId) {
+    const photos = PROJECT_PHOTOS[projectId];
+    if (!photos || photos.length === 0) return;
 
-    layerControl.addOverlay(mesasLayer, 'Mesas Territoriales');
-}
-
-window.openMesaProjects = function(mesaId) {
-    const mesa = mesasData[mesaId];
-    const proyectos = mesasProyectosData[mesaId] || [];
-
-    document.getElementById('mesaPanelTitle').textContent = mesa.nombre;
-
-    const content = document.getElementById('mesaPanelContent');
-
-    if (proyectos.length === 0) {
-        content.innerHTML = '<p style="padding: 20px; color: #7f8c8d;">No hay proyectos registrados para esta mesa.</p>';
-    } else {
-        content.innerHTML = proyectos.map(p => `
-            <div class="mesa-project-card">
-                <div class="mesa-project-header">
-                    <span class="mesa-project-type">${p.tipo}</span>
-                    <span class="mesa-project-status status-${p.estado_key}">${p.estado}</span>
-                </div>
-                <h4>${p.nombre}</h4>
-                <p class="mesa-project-desc">${p.descripcion}</p>
-                <div class="mesa-project-stats">
-                    <div class="stat">
-                        <span class="stat-label">Monto</span>
-                        <span class="stat-value">$${formatNumber(p.monto)}</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-label">Beneficiarios</span>
-                        <span class="stat-value">${p.beneficiarios}</span>
-                    </div>
-                </div>
-                <div class="mesa-project-dates">
-                    ${p.fecha_inicio} &rarr; ${p.fecha_termino}
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${p.avance}%"></div>
-                </div>
-                <span class="progress-label">${p.avance}% completado</span>
-            </div>
-        `).join('');
-    }
-
-    mesaPanel.classList.add('active');
+    currentPhotoSet = photos;
+    currentPhotoIndex = 0;
+    renderCarouselPhoto();
+    photoModal.classList.add('active');
 };
+
+function closePhotoCarousel() {
+    photoModal.classList.remove('active');
+}
+
+function showNextPhoto() {
+    currentPhotoIndex = (currentPhotoIndex + 1) % currentPhotoSet.length;
+    renderCarouselPhoto();
+}
+
+function showPrevPhoto() {
+    currentPhotoIndex = (currentPhotoIndex - 1 + currentPhotoSet.length) % currentPhotoSet.length;
+    renderCarouselPhoto();
+}
+
+document.getElementById('closePhotoModal').addEventListener('click', closePhotoCarousel);
+document.getElementById('photoNext').addEventListener('click', showNextPhoto);
+document.getElementById('photoPrev').addEventListener('click', showPrevPhoto);
+
+// Cerrar al hacer click fuera de la imagen (en el fondo oscuro)
+photoModal.addEventListener('click', (e) => {
+    if (e.target === photoModal) closePhotoCarousel();
+});
 
 //=============== CARGAR DATOS INICIALES ===============//
 
 loadData();
-loadMesasData();
 
 //=============== LEYENDA ===============//
 
@@ -777,10 +789,6 @@ legend.onAdd = function(map) {
     var div = L.DomUtil.create('div', 'legend');
     div.innerHTML = `
         <h4>Referencia</h4>
-        <div class="legend-item">
-            <span class="legend-dot" style="background:#27ae60; border-color:#1e8449;"></span>
-            Mesa Territorial
-        </div>
         <div class="legend-item">
             <span class="legend-dot" style="background:#3498db; border-color:#2980b9;"></span>
             Proyecto

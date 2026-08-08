@@ -19,6 +19,16 @@
 </head>
 <body>
 
+<!-- Pantalla de bienvenida -->
+<div id="welcomeSplash" class="welcome-splash">
+    <div class="welcome-splash-content">
+        <img src="./img/Logo-huella-local.png" alt="Huella Local" class="welcome-logo">
+        <h1>Visualizador Territorial</h1>
+        <p class="welcome-tagline">Que ningún territorio se quede atrás.</p>
+        <button id="welcomeEnter" class="welcome-enter-btn">Explorar el mapa →</button>
+    </div>
+</div>
+
 <!-- Botón para abrir/cerrar sidebar -->
 <button id="toggleSidebar" class="toggle-sidebar" title="Mostrar/Ocultar filtros">☰</button>
 
@@ -63,16 +73,15 @@
 <!-- Mapa -->
 <div id="map"></div>
 
-<!-- Panel Derecho - Proyectos de la Mesa -->
-<div id="mesaPanel" class="mesa-panel">
-    <div class="mesa-panel-header">
-        <div>
-            <span class="mesa-panel-subtitle">Proyectos en la Mesa</span>
-            <h2 id="mesaPanelTitle"></h2>
-        </div>
-        <button id="closeMesaPanel" class="close-btn">✕</button>
+<!-- Modal de fotos del proyecto -->
+<div id="photoModal" class="photo-modal">
+    <div class="photo-modal-content">
+        <button id="closePhotoModal" class="photo-modal-close" title="Cerrar">✕</button>
+        <button id="photoPrev" class="photo-modal-nav photo-modal-prev" title="Anterior">‹</button>
+        <img id="photoModalImg" src="" alt="Foto del proyecto">
+        <button id="photoNext" class="photo-modal-nav photo-modal-next" title="Siguiente">›</button>
+        <div id="photoModalCounter" class="photo-modal-counter"></div>
     </div>
-    <div id="mesaPanelContent" class="mesa-panel-content"></div>
 </div>
 
 <!-- Scripts -->

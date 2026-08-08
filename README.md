@@ -13,10 +13,9 @@ interfaz_huella_local/
 │   │                                     de acá en tiempo real, no hay JSON aparte)
 │   ├── proyectos_comunas.json         # 293 proyectos reales, agrupados por comuna
 │   │                                     (fuente: Resumen_proyectos.xlsx de Huella Local)
-│   └── mesas_territoriales/
-│       ├── mesas.geojson              # Mesas territoriales (datos de ejemplo:
-│       │                                 las mesas reales todavía no están definidas)
-│       └── proyectos.json             # Proyectos de ejemplo por mesa
+│   └── mesas_territoriales/           # En pausa: la interfaz ya no carga estos
+│                                         datos (eran de ejemplo). Se dejan los
+│                                         archivos por si se retoman más adelante.
 ├── assets/
 │   ├── css/
 │   │   └── style.css      # Estilos de la aplicación
@@ -28,23 +27,28 @@ interfaz_huella_local/
 ## ✨ Características
 
 - 🗺️ **Mapa interactivo** centrado en Chile con Leaflet
-- 🔍 **Filtros jerárquicos**: Región → Provincia → Comuna
-- 📍 **Proyectos geolocalizados** con información detallada
+- 🧭 **6 mapas base** intercambiables (selector arriba a la derecha): CartoDB
+  Positron (por defecto), OpenStreetMap, CartoDB Oscuro, Esri Satelital, Esri
+  Topográfico y OpenTopoMap. Positron es el default porque siempre renderiza
+  bien a cualquier zoom; el resto son alternativas para explorar (satelital,
+  oscuro, relieve)
+- 📍 **Los 293 proyectos se muestran desde el inicio**, sin necesidad de filtrar
+- 🔍 **Filtros jerárquicos**: Región → Provincia → Comuna (acotan qué proyectos se ven)
+- 📍 **Proyectos geolocalizados**, con zoom in automático al pinchar uno (desde el mapa o el sidebar)
+- 📷 **Carrusel de fotos** por proyecto (opcional, ver sección "Fotos de proyectos" abajo)
 - 📊 **Tooltips** con: nombre, monto, participantes, porcentaje de avance
 - 🎨 **Interfaz moderna** con sidebar ocultable
 - 📱 **Responsive** para dispositivos móviles
 
 ## 🚀 Uso
 
-1. Abre `index.html` en tu navegador
-2. Haz click en el botón ☰ para abrir los filtros
-3. Selecciona:
+1. Abre `index.html` en tu navegador — el mapa carga con los 293 proyectos ya visibles como puntos azules
+2. (Opcional) Haz click en el botón ☰ para abrir los filtros y acotar la vista:
    - **Región** (se cargan automáticamente las provincias)
    - **Provincia** (se cargan automáticamente las comunas)
    - **Comuna** (selecciona la comuna deseada)
-4. Haz click en **Aceptar** para centrar el mapa
-5. Los proyectos aparecerán como puntos azules
-6. Haz click en un proyecto para ver detalles
+3. Haz click en **Aceptar** para centrar el mapa y filtrar los proyectos, o en **Limpiar** para volver a ver todos
+4. Haz click en un proyecto para ver detalles
 
 ## 📊 Estructura de Datos
 
@@ -91,6 +95,25 @@ Cuando se definan, conviene regenerarlas con el mismo criterio (nada
 inventado, `"S/I"` para lo que falte) que `proyectos_comunas.json`.
 
 ## 🔧 Personalización
+
+### Fotos de proyectos
+
+Cada proyecto puede tener 3 fotos que se ven en un carrusel (link "📷 Ver
+fotos" bajo el proyecto, en el sidebar y en el popup del mapa). Las imágenes
+van en la carpeta `img/` (en la raíz del proyecto) y se asocian por `id` de
+proyecto en `PROJECT_PHOTOS`, dentro de `assets/js/map.js`:
+
+```js
+const PROJECT_PHOTOS = {
+    'MEJ 22_06 PLA': ['img/foto1.jpeg', 'img/foto2.jpeg', 'img/foto3.jpeg'] // Mejoramiento Plaza de Los Profesores
+};
+```
+
+Ahora mismo solo está configurado para ese proyecto. Para agregar fotos a
+otro, sube sus 3 imágenes a `img/` (con nombres que no choquen con las ya
+existentes) y agrega una entrada nueva con su `id` (se puede ver en
+`data/proyectos_comunas.json`). Un proyecto sin entrada en `PROJECT_PHOTOS`
+simplemente no muestra el link de fotos.
 
 ### Agregar o actualizar proyectos
 
