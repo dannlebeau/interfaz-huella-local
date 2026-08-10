@@ -52,10 +52,10 @@ var openTopoMapLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}
     maxNativeZoom: 17
 });
 
-// Capa por defecto: Positron, porque siempre renderiza bien a cualquier
-// zoom (a diferencia de la imagen satelital, que en zonas rurales de Chile
-// no siempre tiene resolución nativa hasta el zoom de un proyecto puntual).
-cartoDBPositronLayer.addTo(map);
+// Capa por defecto: Esri Satelital. El "Map data not yet available" ya
+// queda resuelto con maxNativeZoom (arriba): más allá del zoom nativo,
+// Leaflet reescala el último tile en vez de pedir uno inexistente.
+esriWorldImageryLayer.addTo(map);
 
 // Control de capas
 var baseMaps = {
@@ -509,39 +509,69 @@ function renderProjects(projects) {
         return;
     }
 
+    // Agrupar por categoría (campo "tipo") para poder recorrer los 293
+    // proyectos por tema en vez de una lista plana.
+    const porCategoria = {};
     projects.forEach(project => {
-        const tienePhotos = !!PROJECT_PHOTOS[project.id];
+        const categoria = project.tipo || 'S/I';
+        if (!porCategoria[categoria]) porCategoria[categoria] = [];
+        porCategoria[categoria].push(project);
+    });
 
-        // Agregar a lista en sidebar
-        const projectItem = document.createElement('div');
-        projectItem.className = 'project-item';
-        projectItem.innerHTML = `
-            <div class="mesa-project-header" style="margin-bottom:4px;">
-                <span class="mesa-project-type">${project.tipo}</span>
-                <span class="mesa-project-status status-${project.estado_key}">${project.estado}</span>
-            </div>
-            <strong>${project.name}</strong>
-            <small>Monto: ${formatMonto(project.monto)}</small>
-            <small>Beneficiarios: ${formatCantidad(project.participantes)}</small>
-            ${tienePhotos ? '<a href="#" class="project-photos-link">📷 Ver fotos</a>' : ''}
+    const categoriasOrdenadas = Object.keys(porCategoria).sort(
+        (a, b) => porCategoria[b].length - porCategoria[a].length
+    );
+
+    categoriasOrdenadas.forEach(categoria => {
+        const proyectosCategoria = porCategoria[categoria];
+
+        const grupo = document.createElement('details');
+        grupo.className = 'category-group';
+        grupo.open = categoriasOrdenadas.length === 1;
+
+        const resumen = document.createElement('summary');
+        resumen.className = 'category-summary';
+        resumen.innerHTML = `
+            <span class="category-name">${categoria.replace(/_/g, ' ')}</span>
+            <span class="category-count">${proyectosCategoria.length}</span>
         `;
+        grupo.appendChild(resumen);
 
-        projectItem.addEventListener('click', () => {
-            centerOnProject(project);
+        proyectosCategoria.forEach(project => {
+            const tienePhotos = !!PROJECT_PHOTOS[project.id];
+
+            const projectItem = document.createElement('div');
+            projectItem.className = 'project-item';
+            projectItem.innerHTML = `
+                <div class="mesa-project-header" style="margin-bottom:4px;">
+                    <span class="mesa-project-type">${project.tipo}</span>
+                    <span class="mesa-project-status status-${project.estado_key}">${project.estado}</span>
+                </div>
+                <strong>${project.name}</strong>
+                <small>Monto: ${formatMonto(project.monto)}</small>
+                <small>Beneficiarios: ${formatCantidad(project.participantes)}</small>
+                ${tienePhotos ? '<a href="#" class="project-photos-link">📷 Ver fotos</a>' : ''}
+            `;
+
+            projectItem.addEventListener('click', () => {
+                centerOnProject(project);
+            });
+
+            if (tienePhotos) {
+                projectItem.querySelector('.project-photos-link').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openPhotoCarousel(project.id);
+                });
+            }
+
+            grupo.appendChild(projectItem);
+
+            // Agregar marker en el mapa (si el proyecto trae coordenadas)
+            addProjectMarker(project);
         });
 
-        if (tienePhotos) {
-            projectItem.querySelector('.project-photos-link').addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                openPhotoCarousel(project.id);
-            });
-        }
-
-        projectsList.appendChild(projectItem);
-
-        // Agregar marker en el mapa (si el proyecto trae coordenadas)
-        addProjectMarker(project);
+        projectsList.appendChild(grupo);
     });
 }
 
