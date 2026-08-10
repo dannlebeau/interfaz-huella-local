@@ -27,8 +27,9 @@ map.removeControl(map.zoomControl);
 zoomControl.addTo(map);
 
 const TIPOS = {
-    no_negociable: { color: '#e74c3c', fill: '#e74c3c', label: 'No negociable' },
-    industria_ok: { color: '#0e6655', fill: '#17a2b8', label: 'Industria OK' }
+    rojo: { color: '#c0392b', fill: '#e74c3c', label: 'Rojo' },
+    amarillo: { color: '#b7950b', fill: '#f1c40f', label: 'Amarillo' },
+    azul: { color: '#1a5276', fill: '#3498db', label: 'Azul' }
 };
 
 const FORMA_HINTS = {
@@ -39,7 +40,7 @@ const FORMA_HINTS = {
 
 let puntos = [];
 let markers = {};
-let modoActual = 'no_negociable';
+let modoActual = 'rojo';
 let formaActual = 'punto';
 let pendingLatLng = null; // punto pendiente de nota (click directo en el mapa)
 let pendingGeometria = null; // {forma, coords} pendiente de nota (linea/poligono via Leaflet.Draw)
@@ -58,8 +59,9 @@ panel.addEventListener('click', (e) => e.stopPropagation());
 //=============== MODO (tipo de zona) Y FORMA (punto/linea/poligono) ===============//
 
 const modeButtons = {
-    no_negociable: document.getElementById('modeNoNegociable'),
-    industria_ok: document.getElementById('modeIndustriaOk')
+    rojo: document.getElementById('modeRojo'),
+    amarillo: document.getElementById('modeAmarillo'),
+    azul: document.getElementById('modeAzul')
 };
 
 function setModo(tipo) {
@@ -69,8 +71,9 @@ function setModo(tipo) {
     });
 }
 
-modeButtons.no_negociable.addEventListener('click', () => setModo('no_negociable'));
-modeButtons.industria_ok.addEventListener('click', () => setModo('industria_ok'));
+Object.entries(modeButtons).forEach(([tipo, btn]) => {
+    btn.addEventListener('click', () => setModo(tipo));
+});
 
 const formaButtons = {
     punto: document.getElementById('formaPunto'),
@@ -171,12 +174,86 @@ function centroide(coords) {
     return { lat, lng };
 }
 
+//=============== CONVERSION A/DESDE GEOJSON (exportar/importar) ===============//
+// GeoJSON usa [lng, lat], al reves que nuestros objetos {lat, lng}, y exige
+// que un poligono venga con el anillo cerrado (primer punto = ultimo).
+
+function datoAFeatureGeoJSON(dato) {
+    const forma = dato.forma || 'punto';
+    let geometry;
+
+    if (forma === 'linea') {
+        geometry = { type: 'LineString', coordinates: dato.coords.map(c => [c.lng, c.lat]) };
+    } else if (forma === 'poligono') {
+        const anillo = dato.coords.map(c => [c.lng, c.lat]);
+        const primero = anillo[0];
+        const ultimo = anillo[anillo.length - 1];
+        if (primero[0] !== ultimo[0] || primero[1] !== ultimo[1]) anillo.push(primero);
+        geometry = { type: 'Polygon', coordinates: [anillo] };
+    } else {
+        geometry = { type: 'Point', coordinates: [dato.lng, dato.lat] };
+    }
+
+    return {
+        type: 'Feature',
+        id: dato.id,
+        geometry,
+        properties: {
+            mesa: dato.mesa,
+            tipo: dato.tipo,
+            forma,
+            nota: dato.nota,
+            timestamp: dato.timestamp
+        }
+    };
+}
+
+function featureGeoJSONADato(feature) {
+    const props = feature.properties || {};
+    const geom = feature.geometry || {};
+    const forma = props.forma
+        || (geom.type === 'LineString' ? 'linea' : geom.type === 'Polygon' ? 'poligono' : 'punto');
+
+    const dato = {
+        id: feature.id != null ? String(feature.id) : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        mesa: props.mesa,
+        tipo: props.tipo,
+        forma,
+        nota: props.nota,
+        timestamp: props.timestamp || Date.now()
+    };
+
+    if (geom.type === 'LineString') {
+        dato.coords = geom.coordinates.map(([lng, lat]) => ({ lat, lng }));
+    } else if (geom.type === 'Polygon') {
+        const anillo = geom.coordinates[0];
+        dato.coords = anillo.map(([lng, lat]) => ({ lat, lng }));
+        // Quitar el punto de cierre duplicado para que quede como lo genera Leaflet.Draw
+        const primero = dato.coords[0];
+        const ultimo = dato.coords[dato.coords.length - 1];
+        if (dato.coords.length > 1 && primero.lat === ultimo.lat && primero.lng === ultimo.lng) {
+            dato.coords.pop();
+        }
+    }
+
+    if (dato.coords) {
+        const centro = centroide(dato.coords);
+        dato.lat = centro.lat;
+        dato.lng = centro.lng;
+    } else {
+        dato.lat = geom.coordinates[1];
+        dato.lng = geom.coordinates[0];
+    }
+
+    return dato;
+}
+
 //=============== ELEMENTOS EN EL MAPA Y LISTA ===============//
 
 const FORMA_ICONO = { punto: '📍', linea: '📏', poligono: '⬛' };
 
 function agregarElemento(dato) {
-    const estilo = TIPOS[dato.tipo] || TIPOS.no_negociable;
+    const estilo = TIPOS[dato.tipo] || TIPOS.rojo;
     const forma = dato.forma || 'punto';
     let layer;
 
@@ -231,7 +308,7 @@ function renderLista() {
     const ordenados = [...puntos].sort((a, b) => b.timestamp - a.timestamp);
 
     ordenados.forEach(dato => {
-        const estilo = TIPOS[dato.tipo] || TIPOS.no_negociable;
+        const estilo = TIPOS[dato.tipo] || TIPOS.rojo;
         const item = document.createElement('div');
         item.className = `mp-point-item tipo-${dato.tipo}`;
         item.innerHTML = `
@@ -259,15 +336,17 @@ function renderLista() {
 
 function renderStats() {
     const stats = document.getElementById('mpStats');
-    const noNegociable = puntos.filter(p => p.tipo === 'no_negociable').length;
-    const industriaOk = puntos.filter(p => p.tipo === 'industria_ok').length;
+    const rojo = puntos.filter(p => p.tipo === 'rojo').length;
+    const amarillo = puntos.filter(p => p.tipo === 'amarillo').length;
+    const azul = puntos.filter(p => p.tipo === 'azul').length;
     const mesas = new Set(puntos.map(p => p.mesa)).size;
 
     stats.innerHTML = `
         <h3>Resumen del taller</h3>
         <div class="general-stats-total">${puntos.length} elemento${puntos.length === 1 ? '' : 's'} marcado${puntos.length === 1 ? '' : 's'} · ${mesas} mesa${mesas === 1 ? '' : 's'}</div>
-        <div class="zona-row"><span class="zona-label">🔴 No negociable</span><span class="zona-count">${noNegociable}</span></div>
-        <div class="zona-row"><span class="zona-label">🔵 Industria OK</span><span class="zona-count">${industriaOk}</span></div>
+        <div class="zona-row"><span class="zona-label">🔴 Rojo</span><span class="zona-count">${rojo}</span></div>
+        <div class="zona-row"><span class="zona-label">🟡 Amarillo</span><span class="zona-count">${amarillo}</span></div>
+        <div class="zona-row"><span class="zona-label">🔵 Azul</span><span class="zona-count">${azul}</span></div>
     `;
 }
 
@@ -374,12 +453,17 @@ document.getElementById('exportBtn').addEventListener('click', () => {
         return;
     }
 
-    const blob = new Blob([JSON.stringify(aExportar, null, 2)], { type: 'application/json' });
+    const geojson = {
+        type: 'FeatureCollection',
+        features: aExportar.map(datoAFeatureGeoJSON)
+    };
+
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/geo+json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     const nombreMesa = (mesaActual || 'todas').replace(/\s+/g, '-').toLowerCase();
     a.href = url;
-    a.download = `mejillones-2050-${nombreMesa}-${Date.now()}.json`;
+    a.download = `mejillones-2050-${nombreMesa}-${Date.now()}.geojson`;
     a.click();
     URL.revokeObjectURL(url);
 });
@@ -391,10 +475,13 @@ document.getElementById('importInput').addEventListener('change', async (e) => {
     for (const archivo of archivos) {
         try {
             const texto = await archivo.text();
-            const datos = JSON.parse(texto);
-            const nuevos = Array.isArray(datos) ? datos : [datos];
+            const datosGeoJSON = JSON.parse(texto);
+            const features = datosGeoJSON.type === 'FeatureCollection'
+                ? datosGeoJSON.features
+                : (Array.isArray(datosGeoJSON) ? datosGeoJSON : [datosGeoJSON]);
 
-            nuevos.forEach(dato => {
+            features.forEach(feature => {
+                const dato = featureGeoJSONADato(feature);
                 // Evitar duplicados si el mismo archivo se importa dos veces
                 if (puntos.some(p => p.id === dato.id)) return;
                 puntos.push(dato);
@@ -402,7 +489,7 @@ document.getElementById('importInput').addEventListener('change', async (e) => {
             });
         } catch (err) {
             console.error('No se pudo importar', archivo.name, err);
-            alert(`No se pudo leer "${archivo.name}": ¿es un JSON exportado desde esta misma herramienta?`);
+            alert(`No se pudo leer "${archivo.name}": ¿es un GeoJSON exportado desde esta misma herramienta?`);
         }
     }
 
@@ -455,12 +542,53 @@ function aplicarMesaDesdeQR() {
     panel.classList.add('active');
 }
 
+//=============== PUNTO DE EJEMPLO ===============//
+// Un punto de muestra, ya marcado, para que la herramienta no se vea vacia
+// al mostrarla/explicarla. Vive fuera de "puntos": no se guarda en
+// localStorage, no se exporta y no cuenta en el resumen del taller.
+
+const PUNTO_EJEMPLO = {
+    id: 'ejemplo-plaza',
+    mesa: 'Mesa ejemplo',
+    tipo: 'rojo',
+    forma: 'punto',
+    nota: 'Ejemplo: la Plaza de Armas, un lugar que la comunidad no negocia.',
+    lat: -23.10063,
+    lng: -70.448541
+};
+
+function agregarPuntoEjemplo() {
+    const estilo = TIPOS[PUNTO_EJEMPLO.tipo];
+    const marker = L.circleMarker([PUNTO_EJEMPLO.lat, PUNTO_EJEMPLO.lng], {
+        radius: 9,
+        fillColor: estilo.fill,
+        color: estilo.color,
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.85,
+        dashArray: '3, 3'
+    }).addTo(map);
+
+    marker.bindTooltip('Mesa ejemplo', { permanent: false, direction: 'top' });
+    marker.bindPopup(`
+        <div class="popup-content">
+            <div class="mesa-project-header" style="margin-bottom:6px;">
+                <span class="mesa-project-type">📍 Mesa ejemplo</span>
+                <span class="mesa-project-status" style="background:${estilo.fill}22; color:${estilo.color};">${estilo.label}</span>
+            </div>
+            <p>${PUNTO_EJEMPLO.nota}</p>
+            <p style="color:#95a5a6;"><em>Este punto es solo de ejemplo: no se exporta ni cuenta en el resumen.</em></p>
+        </div>
+    `);
+}
+
 //=============== CARGA INICIAL ===============//
 
 puntos = cargarLocal();
 puntos.forEach(agregarElemento);
 renderTodo();
 aplicarMesaDesdeQR();
+agregarPuntoEjemplo();
 
 //=============== LEYENDA ===============//
 
@@ -471,12 +599,16 @@ legend.onAdd = function() {
     div.innerHTML = `
         <h4>Referencia</h4>
         <div class="legend-item">
-            <span class="legend-dot" style="background:#e74c3c; border-color:#922b21;"></span>
-            No negociable
+            <span class="legend-dot" style="background:#e74c3c; border-color:#c0392b;"></span>
+            Rojo
         </div>
         <div class="legend-item">
-            <span class="legend-dot" style="background:#17a2b8; border-color:#0e6655;"></span>
-            Industria OK
+            <span class="legend-dot" style="background:#f1c40f; border-color:#b7950b;"></span>
+            Amarillo
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background:#3498db; border-color:#1a5276;"></span>
+            Azul
         </div>
         <p style="font-size: 11px; color: #7f8c8d; margin: 10px 0 0 0;">
             Plan Mejillones 2050 — Mapeo participativo

@@ -19,7 +19,6 @@
 }
 
 .mp-qr-link {
-    top: 64px;
     background: rgba(146, 43, 33, 0.92);
 }
 
@@ -73,10 +72,16 @@
     color: #922b21;
 }
 
+.mp-mode-amarillo.active {
+    border-color: #f1c40f;
+    background: #fef9e7;
+    color: #b7950b;
+}
+
 .mp-mode-azul.active {
-    border-color: #17a2b8;
-    background: #e8f7f9;
-    color: #0e6655;
+    border-color: #3498db;
+    background: #eaf2fd;
+    color: #1a5276;
 }
 
 .mp-mode-hint {
@@ -151,12 +156,16 @@
     background: #ecf0f1;
 }
 
-.mp-point-item.tipo-no_negociable {
+.mp-point-item.tipo-rojo {
     border-left-color: #e74c3c;
 }
 
-.mp-point-item.tipo-industria_ok {
-    border-left-color: #17a2b8;
+.mp-point-item.tipo-amarillo {
+    border-left-color: #f1c40f;
+}
+
+.mp-point-item.tipo-azul {
+    border-left-color: #3498db;
 }
 
 .mp-point-main {
@@ -251,10 +260,6 @@
         left: 52px;
         top: 12px;
         padding: 6px 10px;
-    }
-
-    .mp-qr-link {
-        top: 50px;
     }
 }
 

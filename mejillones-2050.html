@@ -18,7 +18,6 @@
 </head>
 <body>
 
-<a href="./index.html" class="mp-back-link">← Volver al visualizador</a>
 <a href="./mesas-qr.html" class="mp-back-link mp-qr-link">🖨️ QR de las mesas</a>
 
 <!-- Botón para abrir/cerrar panel -->
@@ -63,11 +62,14 @@
     <div class="filter-group">
         <label>Tipo de zona a marcar:</label>
         <div class="mp-mode-toggle">
-            <button id="modeNoNegociable" class="mp-mode-btn mp-mode-rojo active" data-tipo="no_negociable">
-                🔴 No negociable
+            <button id="modeRojo" class="mp-mode-btn mp-mode-rojo active" data-tipo="rojo">
+                🔴 Rojo
             </button>
-            <button id="modeIndustriaOk" class="mp-mode-btn mp-mode-azul" data-tipo="industria_ok">
-                🔵 Industria OK
+            <button id="modeAmarillo" class="mp-mode-btn mp-mode-amarillo" data-tipo="amarillo">
+                🟡 Amarillo
+            </button>
+            <button id="modeAzul" class="mp-mode-btn mp-mode-azul" data-tipo="azul">
+                🔵 Azul
             </button>
         </div>
     </div>
@@ -90,7 +92,7 @@
 
     <div class="filter-group">
         <label for="importInput">Importar mapas de otras mesas:</label>
-        <input type="file" id="importInput" accept="application/json" multiple>
+        <input type="file" id="importInput" accept=".geojson,.json,application/geo+json,application/json" multiple>
     </div>
 
     <div id="mpStats" class="general-stats"></div>
