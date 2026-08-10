@@ -134,6 +134,12 @@ const PROJECT_PHOTOS = {
     'MEJ 22_06 PLA': ['img/foto1.jpeg', 'img/foto2.jpeg', 'img/foto3.jpeg'] // Mejoramiento Plaza de Los Profesores
 };
 
+// Complementos por proyecto: páginas aparte dentro del mismo sitio (id ->
+// {url, label}). Un proyecto sin entrada acá no muestra ningún link extra.
+const PROJECT_LINKS = {
+    'MEJ 26_01 PM': { url: 'mejillones-2050.html', label: '🗺️ Mapeo participativo: La bahía que no se vende' } // Plan Mejillones 2050
+};
+
 // Cargar datos desde Comunas.geojson
 async function loadData() {
     try {
@@ -539,6 +545,7 @@ function renderProjects(projects) {
 
         proyectosCategoria.forEach(project => {
             const tienePhotos = !!PROJECT_PHOTOS[project.id];
+            const linkExtra = PROJECT_LINKS[project.id];
 
             const projectItem = document.createElement('div');
             projectItem.className = 'project-item';
@@ -551,14 +558,19 @@ function renderProjects(projects) {
                 <small>Monto: ${formatMonto(project.monto)}</small>
                 <small>Beneficiarios: ${formatCantidad(project.participantes)}</small>
                 ${tienePhotos ? '<a href="#" class="project-photos-link">📷 Ver fotos</a>' : ''}
+                ${linkExtra ? `<a href="${linkExtra.url}" class="project-photos-link project-extra-link" target="_blank" rel="noopener">${linkExtra.label}</a>` : ''}
             `;
 
             projectItem.addEventListener('click', () => {
                 centerOnProject(project);
             });
 
+            if (linkExtra) {
+                projectItem.querySelector('.project-extra-link').addEventListener('click', (e) => e.stopPropagation());
+            }
+
             if (tienePhotos) {
-                projectItem.querySelector('.project-photos-link').addEventListener('click', (e) => {
+                projectItem.querySelector('.project-photos-link:not(.project-extra-link)').addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     openPhotoCarousel(project.id);
@@ -601,6 +613,7 @@ function addProjectMarker(project) {
             <p><strong>Fechas:</strong> ${project.fecha_inicio} &rarr; ${project.fecha_termino}</p>
             ${project.ubicacion_aproximada ? '<p style="color:#b7950b;"><em>Ubicación aproximada (centro de la comuna, sin coordenada exacta en la fuente).</em></p>' : ''}
             ${PROJECT_PHOTOS[project.id] ? `<a href="#" class="popup-project-link" onclick="openPhotoCarousel('${project.id}'); return false;">📷 Ver fotos</a>` : ''}
+            ${PROJECT_LINKS[project.id] ? `<a href="${PROJECT_LINKS[project.id].url}" class="popup-project-link" target="_blank" rel="noopener" style="margin-left:6px;">${PROJECT_LINKS[project.id].label}</a>` : ''}
         </div>
     `;
 

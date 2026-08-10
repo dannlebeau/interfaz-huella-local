@@ -1,0 +1,123 @@
+<!--
+    Huella Local · Mejillones 2050 - Mapeo participativo
+    Complemento del proyecto "Plan Mejillones 2050"
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Huella Local">
+    <meta name="description" content="Mapeo participativo del Plan Mejillones 2050">
+    <title>La bahía que no se vende - Mejillones 2050</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <link rel="stylesheet" href="./assets/css/style.css">
+    <link rel="stylesheet" href="./assets/css/mejillones-2050.css">
+</head>
+<body>
+
+<a href="./index.html" class="mp-back-link">← Volver al visualizador</a>
+<a href="./mesas-qr.html" class="mp-back-link mp-qr-link">🖨️ QR de las mesas</a>
+
+<!-- Botón para abrir/cerrar panel -->
+<button id="togglePanel" class="toggle-sidebar" title="Mostrar/Ocultar panel">☰</button>
+
+<!-- Panel lateral -->
+<div id="mpPanel" class="sidebar mp-panel">
+    <div class="sidebar-header mp-header">
+        <div>
+            <span class="mp-eyebrow">Plan Mejillones 2050</span>
+            <h2>La bahía que no se vende</h2>
+        </div>
+        <button id="closePanel" class="close-btn">✕</button>
+    </div>
+
+    <div class="mp-instructions">
+        Selecciona tu mesa, elige el tipo de zona y la forma, y marca en el
+        mapa. Al cerrar el taller, cada mesa <strong>exporta</strong> su
+        archivo y quien facilita los <strong>importa todos acá</strong> para
+        ver el mapa conjunto de la comuna.
+    </div>
+
+    <div id="mesaLockedBanner" class="mp-mesa-locked"></div>
+
+    <div class="filter-group">
+        <label for="mesaSelect">Mesa:</label>
+        <select id="mesaSelect">
+            <option value="">-- Seleccionar mesa --</option>
+            <option value="Mesa 1">Mesa 1</option>
+            <option value="Mesa 2">Mesa 2</option>
+            <option value="Mesa 3">Mesa 3</option>
+            <option value="Mesa 4">Mesa 4</option>
+            <option value="Mesa 5">Mesa 5</option>
+            <option value="Mesa 6">Mesa 6</option>
+            <option value="Mesa 7">Mesa 7</option>
+            <option value="Mesa 8">Mesa 8</option>
+            <option value="Mesa 9">Mesa 9</option>
+            <option value="Mesa 10">Mesa 10</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label>Tipo de zona a marcar:</label>
+        <div class="mp-mode-toggle">
+            <button id="modeNoNegociable" class="mp-mode-btn mp-mode-rojo active" data-tipo="no_negociable">
+                🔴 No negociable
+            </button>
+            <button id="modeIndustriaOk" class="mp-mode-btn mp-mode-azul" data-tipo="industria_ok">
+                🔵 Industria OK
+            </button>
+        </div>
+    </div>
+
+    <div class="filter-group">
+        <label>Forma:</label>
+        <div class="mp-mode-toggle mp-forma-toggle">
+            <button id="formaPunto" class="mp-mode-btn mp-forma-btn active" data-forma="punto">📍 Punto</button>
+            <button id="formaLinea" class="mp-mode-btn mp-forma-btn" data-forma="linea">📏 Línea</button>
+            <button id="formaPoligono" class="mp-mode-btn mp-forma-btn" data-forma="poligono">⬛ Polígono</button>
+        </div>
+        <p id="formaHint" class="mp-mode-hint">Haz click en el mapa para marcar un punto con el modo activo.</p>
+        <button id="drawShapeBtn" class="btn-primary mp-draw-btn" style="display:none;">✏️ Dibujar línea</button>
+    </div>
+
+    <div class="filter-actions">
+        <button id="exportBtn" class="btn-primary">Exportar mesa</button>
+        <button id="clearBtn" class="btn-secondary">Limpiar todo</button>
+    </div>
+
+    <div class="filter-group">
+        <label for="importInput">Importar mapas de otras mesas:</label>
+        <input type="file" id="importInput" accept="application/json" multiple>
+    </div>
+
+    <div id="mpStats" class="general-stats"></div>
+
+    <div id="mpList" class="projects-list mp-list"></div>
+</div>
+
+<!-- Mapa -->
+<div id="map"></div>
+
+<!-- Modal para agregar la nota de un punto -->
+<div id="noteModal" class="mp-note-modal">
+    <div class="mp-note-modal-content">
+        <h3 id="noteModalTitle">Nuevo elemento</h3>
+        <p id="noteModalMeta" class="mp-note-meta"></p>
+        <textarea id="noteText" rows="4" placeholder="¿Qué es este lugar y por qué? (breve)"></textarea>
+        <div class="mp-note-modal-actions">
+            <button id="noteCancel" class="btn-secondary">Cancelar</button>
+            <button id="noteSave" class="btn-primary">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="./assets/js/mejillones-2050.js"></script>
+
+</body>
+</html>
