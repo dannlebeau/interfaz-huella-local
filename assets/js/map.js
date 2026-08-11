@@ -538,7 +538,8 @@ function renderProjects(projects) {
         grupo.appendChild(resumen);
 
         proyectosCategoria.forEach(project => {
-            const tienePhotos = !!PROJECT_PHOTOS[project.id];
+            const photos = PROJECT_PHOTOS[project.id];
+            const tienePhotos = !!photos;
 
             const projectItem = document.createElement('div');
             projectItem.className = 'project-item';
@@ -550,7 +551,10 @@ function renderProjects(projects) {
                 <strong>${project.name}</strong>
                 <small>Monto: ${formatMonto(project.monto)}</small>
                 <small>Beneficiarios: ${formatCantidad(project.participantes)}</small>
-                ${tienePhotos ? '<a href="#" class="project-photos-link">📷 Ver fotos</a>' : ''}
+                ${tienePhotos ? `
+                <div class="project-photos-thumbs">
+                    ${photos.map((src, idx) => `<img src="${src}" class="project-photo-thumb" data-idx="${idx}" alt="Foto ${idx + 1} de ${project.name}">`).join('')}
+                </div>` : ''}
             `;
 
             projectItem.addEventListener('click', () => {
@@ -558,10 +562,12 @@ function renderProjects(projects) {
             });
 
             if (tienePhotos) {
-                projectItem.querySelector('.project-photos-link').addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    openPhotoCarousel(project.id);
+                projectItem.querySelectorAll('.project-photo-thumb').forEach(thumb => {
+                    thumb.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openPhotoCarousel(project.id, Number(thumb.dataset.idx));
+                    });
                 });
             }
 
@@ -600,7 +606,10 @@ function addProjectMarker(project) {
             <p><strong>Región:</strong> ${project.region} &middot; <strong>Zona:</strong> ${project.zona}</p>
             <p><strong>Fechas:</strong> ${project.fecha_inicio} &rarr; ${project.fecha_termino}</p>
             ${project.ubicacion_aproximada ? '<p style="color:#b7950b;"><em>Ubicación aproximada (centro de la comuna, sin coordenada exacta en la fuente).</em></p>' : ''}
-            ${PROJECT_PHOTOS[project.id] ? `<a href="#" class="popup-project-link" onclick="openPhotoCarousel('${project.id}'); return false;">📷 Ver fotos</a>` : ''}
+            ${PROJECT_PHOTOS[project.id] ? `
+            <div class="popup-photos-thumbs">
+                ${PROJECT_PHOTOS[project.id].map((src, idx) => `<img src="${src}" class="popup-photo-thumb" onclick="openPhotoCarousel('${project.id}', ${idx}); return false;" alt="Foto ${idx + 1}">`).join('')}
+            </div>` : ''}
         </div>
     `;
 
@@ -774,12 +783,12 @@ function renderCarouselPhoto() {
     photoModalCounter.textContent = `${currentPhotoIndex + 1} / ${currentPhotoSet.length}`;
 }
 
-window.openPhotoCarousel = function(projectId) {
+window.openPhotoCarousel = function(projectId, startIndex = 0) {
     const photos = PROJECT_PHOTOS[projectId];
     if (!photos || photos.length === 0) return;
 
     currentPhotoSet = photos;
-    currentPhotoIndex = 0;
+    currentPhotoIndex = startIndex;
     renderCarouselPhoto();
     photoModal.classList.add('active');
 };
