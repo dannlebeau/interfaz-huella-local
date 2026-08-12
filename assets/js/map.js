@@ -603,7 +603,7 @@ function addProjectMarker(project) {
             <h4>${project.name}</h4>
             <p><strong>Monto:</strong> ${formatMonto(project.monto)}</p>
             <p><strong>Beneficiarios:</strong> ${formatCantidad(project.participantes)}</p>
-            <p><strong>Región:</strong> ${project.region} &middot; <strong>Zona:</strong> ${project.zona}</p>
+            <p><strong>Región:</strong> ${project.region} &middot; <strong>Comuna:</strong> ${project.comuna}</p>
             <p><strong>Fechas:</strong> ${project.fecha_inicio} &rarr; ${project.fecha_termino}</p>
             ${project.ubicacion_aproximada ? '<p style="color:#b7950b;"><em>Ubicación aproximada (centro de la comuna, sin coordenada exacta en la fuente).</em></p>' : ''}
             ${PROJECT_PHOTOS[project.id] ? `
