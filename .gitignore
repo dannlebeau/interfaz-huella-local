@@ -1,3 +1,6 @@
 # Respaldo sin simplificar de Comunas.geojson (215MB, ver scripts/simplificar_comunas.py).
 # data/Comunas.geojson SÍ se versiona: ya simplificado a ~14MB, es viable en git normal.
 data/Comunas_full.geojson
+
+# Excel fuente y planillas de revisión (no se versionan)
+origen/

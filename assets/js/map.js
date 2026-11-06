@@ -127,6 +127,9 @@ let comunasData = {};
 let comunaInfo = {}; // comuna -> { region, provincia }, para aplicar filtros desde el resumen general
 let limitesLayer = null; // Capa de límites
 let projectsByCommune = {}; // Almacenar proyectos por comuna
+let proyectosVisibles = []; // Proyectos de la selección actual (filtros/zona)
+let alcanceActual = 'Todo Chile'; // Nombre de esa selección, para el panel derecho
+let proyectoSeleccionado = null; // Proyecto con el popup abierto (el panel lo muestra a él)
 
 // Fotos por proyecto (id -> arreglo de 3 rutas en /img). Un proyecto sin
 // entrada acá simplemente no muestra el link "Ver fotos".
@@ -154,9 +157,9 @@ async function loadData() {
 
         loadRegions();
         renderGeneralStats();
-        renderProjects(getAllProjects());
+        renderProjects(getAllProjects(), 'Todo Chile');
 
-        console.log('✅ Proyectos por comuna cargados:', Object.values(projectsByCommune).reduce((n, arr) => n + arr.length, 0));
+        console.log('✅ Proyectos visibles:', getAllProjects().length);
     } catch (error) {
         console.error('Error al cargar datos:', error);
     }
@@ -382,7 +385,11 @@ applyBtn.addEventListener('click', function() {
     showLimits(selectedRegion, selectedProvince, selectedCommune);
 
     // Mostrar los proyectos que calzan con el filtro elegido
-    renderProjects(getFilteredProjects(selectedRegion, selectedProvince, selectedCommune));
+    setZonaActiva(null);
+    renderProjects(
+        getFilteredProjects(selectedRegion, selectedProvince, selectedCommune),
+        selectedCommune || selectedProvince || selectedRegion
+    );
 
     sidebar.classList.remove('active');
 });
@@ -398,7 +405,8 @@ resetBtn.addEventListener('click', function() {
     communeSelect.disabled = true;
 
     // Volver a mostrar todos los proyectos
-    renderProjects(getAllProjects());
+    setZonaActiva(null);
+    renderProjects(getAllProjects(), 'Todo Chile');
     clearLimits();
 
     // Centrar en Chile
@@ -473,16 +481,76 @@ function aplicarFiltrosPorComuna(comuna) {
     provinceSelect.dispatchEvent(new Event('change'));
     communeSelect.value = comuna;
 
+    setZonaActiva(null);
     showLimits(info.region, info.provincia, comuna);
-    renderProjects(getFilteredProjects(info.region, info.provincia, comuna));
+    renderProjects(getFilteredProjects(info.region, info.provincia, comuna), comuna);
     return true;
 }
 
-// Todos los proyectos reales, aplanados desde projectsByCommune y con la
+// Deja los selects de Región/Provincia/Comuna vacíos sin volver a pintar.
+function limpiarSelects() {
+    regionSelect.value = '';
+    provinceSelect.innerHTML = '<option value="">-- Seleccionar Provincia --</option>';
+    provinceSelect.disabled = true;
+    communeSelect.innerHTML = '<option value="">-- Seleccionar Comuna --</option>';
+    communeSelect.disabled = true;
+}
+
+//=============== FILTRO POR ZONA (desde el resumen general) ===============//
+
+let zonaActiva = null;
+
+function setZonaActiva(zona) {
+    zonaActiva = zona;
+    document.querySelectorAll('.zona-row[data-zona]').forEach(el => {
+        el.classList.toggle('active', el.dataset.zona === zona);
+    });
+}
+
+// Pinchar una zona muestra solo sus proyectos; pinchar la misma zona otra
+// vez vuelve a mostrar todos. Reemplaza cualquier filtro Región/Provincia/Comuna.
+function filtrarPorZona(zona) {
+    limpiarSelects();
+    clearLimits();
+
+    if (zona === zonaActiva) {
+        setZonaActiva(null);
+        renderProjects(getAllProjects(), 'Todo Chile');
+        map.setView([-35.6751, -71.5430], 4);
+        return;
+    }
+
+    setZonaActiva(zona);
+    const proyectos = getAllProjects().filter(p => (p.zona || 'S/I') === zona);
+    renderProjects(proyectos, `Zona ${zona}`);
+
+    const markers = proyectos.map(p => projectMarkers[p.id]).filter(Boolean);
+    if (markers.length) {
+        map.fitBounds(L.featureGroup(markers).getBounds(), { padding: [40, 40], maxZoom: 12 });
+    }
+}
+
+// Tipos que por ahora no se muestran en la interfaz (siguen en el JSON).
+const TIPOS_OCULTOS = new Set(['Servicios_Profesionales', 'Estudios_Territoriales']);
+
+// Color de cada proyecto según su línea de trabajo (columna "Línea de
+// Trabajo" del Excel). Se usa en los markers y en la leyenda.
+const LINEAS_TRABAJO = {
+    'Inversión Pública': { fill: '#3498db', borde: '#21618c' },
+    'Ejecución de Obras': { fill: '#e67e22', borde: '#a04000' },
+    'Asistencia Técnica': { fill: '#1e8449', borde: '#145a32' },
+};
+const LINEA_TRABAJO_SIN_INFO = { fill: '#95a5a6', borde: '#616a6b' };
+
+function colorLineaTrabajo(linea) {
+    return LINEAS_TRABAJO[linea] || LINEA_TRABAJO_SIN_INFO;
+}
+
+// Todos los proyectos visibles, aplanados desde projectsByCommune y con la
 // comuna incluida en cada proyecto (útil para filtrar/agrupar).
 function getAllProjects() {
     return Object.entries(projectsByCommune).flatMap(([comuna, arr]) =>
-        arr.map(p => ({ ...p, comuna }))
+        arr.filter(p => !TIPOS_OCULTOS.has(p.tipo)).map(p => ({ ...p, comuna }))
     );
 }
 
@@ -497,19 +565,26 @@ function getFilteredProjects(region, province, commune) {
     });
 }
 
-// Pinta la lista en el sidebar y los markers en el mapa para un conjunto de proyectos.
-function renderProjects(projects) {
+// Pinta la lista en el sidebar, los markers en el mapa y el panel de
+// beneficiarios para un conjunto de proyectos. `alcance` describe el filtro
+// activo (p.ej. "Zona Norte", "Biobío") para el panel derecho.
+function renderProjects(projects, alcance = 'Todo Chile') {
     const projectsList = document.getElementById('projectsList');
     projectsList.innerHTML = '';
 
+    // Se guardan antes de limpiar los markers: al quitarlos se cierra el
+    // popup abierto y el panel vuelve a esta selección.
+    proyectosVisibles = projects;
+    alcanceActual = alcance;
     clearProjectMarkers();
+    actualizarPanelSegunVista();
 
     if (projects.length === 0) {
         projectsList.innerHTML = '<div style="padding: 15px; color: #7f8c8d;">No hay proyectos en esta selección</div>';
         return;
     }
 
-    // Agrupar por categoría (campo "tipo") para poder recorrer los 293
+    // Agrupar por categoría (campo "tipo") para poder recorrer los
     // proyectos por tema en vez de una lista plana.
     const porCategoria = {};
     projects.forEach(project => {
@@ -544,13 +619,13 @@ function renderProjects(projects) {
             const projectItem = document.createElement('div');
             projectItem.className = 'project-item';
             projectItem.innerHTML = `
-                <div class="mesa-project-header" style="margin-bottom:4px;">
-                    <span class="mesa-project-type">${project.tipo}</span>
-                    <span class="mesa-project-status status-${project.estado_key}">${project.estado}</span>
+                <div class="project-header" style="margin-bottom:4px;">
+                    <span class="project-type">${project.tipo}</span>
+                    <span class="project-status status-${project.estado_key}">${project.estado}</span>
                 </div>
                 <strong>${project.name}</strong>
-                <small>Monto: ${formatMonto(project.monto)}</small>
-                <small>Beneficiarios: ${formatCantidad(project.participantes)}</small>
+                ${noAplica(project.monto) ? '' : `<small>Monto: ${formatMonto(project.monto)}</small>`}
+                ${noAplica(project.participantes) ? '' : `<small>Beneficiarios: ${formatCantidad(project.participantes)}</small>`}
                 ${tienePhotos ? `
                 <div class="project-photos-thumbs">
                     ${photos.map((src, idx) => `<img src="${src}" class="project-photo-thumb" data-idx="${idx}" alt="Foto ${idx + 1} de ${project.name}">`).join('')}
@@ -584,10 +659,11 @@ function renderProjects(projects) {
 function addProjectMarker(project) {
     if (typeof project.lat !== 'number' || typeof project.lng !== 'number') return;
 
+    const color = colorLineaTrabajo(project.linea_trabajo);
     const marker = L.circleMarker([project.lat, project.lng], {
         radius: 8,
-        fillColor: '#3498db',
-        color: '#2980b9',
+        fillColor: color.fill,
+        color: color.borde,
         weight: 2,
         opacity: 1,
         fillOpacity: 0.8
@@ -596,16 +672,20 @@ function addProjectMarker(project) {
     // Crear popup con información detallada
     const popupContent = `
         <div class="popup-content">
-            <div class="mesa-project-header" style="margin-bottom:6px;">
-                <span class="mesa-project-type">${project.tipo}</span>
-                <span class="mesa-project-status status-${project.estado_key}">${project.estado}</span>
+            <div class="project-header" style="margin-bottom:6px;">
+                <span class="project-type">${project.tipo}</span>
+                <span class="project-status status-${project.estado_key}">${project.estado}</span>
             </div>
             <h4>${project.name}</h4>
-            <p><strong>Monto:</strong> ${formatMonto(project.monto)}</p>
-            <p><strong>Beneficiarios:</strong> ${formatCantidad(project.participantes)}</p>
+            ${noAplica(project.monto) ? '' : `<p><strong>Monto:</strong> ${formatMonto(project.monto)}</p>`}
+            ${noAplica(project.participantes) ? '' : `<p><strong>Beneficiarios:</strong> ${formatCantidad(project.participantes)}</p>`}
             <p><strong>Región:</strong> ${project.region} &middot; <strong>Comuna:</strong> ${project.comuna}</p>
-            <p><strong>Fechas:</strong> ${project.fecha_inicio} &rarr; ${project.fecha_termino}</p>
-            ${project.ubicacion_aproximada ? '<p style="color:#b7950b;"><em>Ubicación aproximada (centro de la comuna, sin coordenada exacta en la fuente).</em></p>' : ''}
+            ${tieneDato(project.socio) ? `<p><strong>Socio / Empresa:</strong> ${project.socio}</p>` : ''}
+            ${tieneDato(project.financiamiento) ? `<p><strong>Financiamiento:</strong> ${project.financiamiento}</p>` : ''}
+            ${typeof project.magnitud === 'number' ? `<p><strong>Magnitud:</strong> ${formatNumber(project.magnitud)}${tieneDato(project.unidad) ? ' ' + project.unidad : ''}</p>` : ''}
+            ${renderLineaTiempo(project.linea_tiempo)}
+            ${textoUbicacion(project)}
+            <a class="popup-gmaps-link" href="https://www.google.com/maps/search/?api=1&query=${project.lat},${project.lng}" target="_blank" rel="noopener">📍 Ver en Google Maps</a>
             ${PROJECT_PHOTOS[project.id] ? `
             <div class="popup-photos-thumbs">
                 ${PROJECT_PHOTOS[project.id].map((src, idx) => `<img src="${src}" class="popup-photo-thumb" onclick="openPhotoCarousel('${project.id}', ${idx}); return false;" alt="Foto ${idx + 1}">`).join('')}
@@ -613,11 +693,17 @@ function addProjectMarker(project) {
         </div>
     `;
 
-    marker.bindPopup(popupContent);
+    marker.bindPopup(popupContent, { maxWidth: 340 });
     marker.on('click', function() {
         // Al pinchar un proyecto en el mapa, hacer zoom in y centrarlo (igual
         // que al elegirlo desde el sidebar), no solo abrir el popup.
         centerOnProject(project);
+    });
+
+    // Al cerrar el popup, el panel vuelve a mostrar la selección completa.
+    marker.on('popupclose', () => {
+        proyectoSeleccionado = null;
+        actualizarPanelSegunVista();
     });
 
     projectMarkers[project.id] = marker;
@@ -630,6 +716,11 @@ function centerOnProject(project) {
     if (projectMarkers[project.id]) {
         projectMarkers[project.id].openPopup();
     }
+
+    // Después de abrir el popup: abrirlo cierra el anterior, y ese cierre
+    // restaura el panel a la selección completa.
+    proyectoSeleccionado = project;
+    renderPanelBeneficiarios([project], project.name, alcanceActual);
 
     sidebar.classList.remove('active');
 }
@@ -648,11 +739,77 @@ function formatNumber(num) {
 // Los proyectos reales traen "S/I" (sin información) en vez de un número
 // cuando el dato no existía en la fuente — no se inventa un valor.
 function formatMonto(valor) {
-    return typeof valor === 'number' ? `$${formatNumber(valor)}` : 'S/I';
+    return typeof valor === 'number' ? `$${formatNumber(Math.round(valor))}` : 'S/I';
 }
 
 function formatCantidad(valor) {
     return typeof valor === 'number' ? formatNumber(valor) : 'S/I';
+}
+
+// "N/A" = no aplica a este proyecto (viene como "NA" en el Excel): el dato no
+// se muestra. "S/I" = aplica pero no hay información todavía.
+function noAplica(valor) {
+    return valor === 'N/A';
+}
+
+function tieneDato(valor) {
+    return valor !== undefined && valor !== null && valor !== '' && valor !== 'S/I' && !noAplica(valor);
+}
+
+// Hitos del proyecto en el orden en que ocurren. Las fechas de la fuente son
+// a nivel de mes ("YYYY-MM").
+const HITOS_LINEA_TIEMPO = [
+    ['postulacion', 'Postulación o entrega'],
+    ['aprobacion', 'Aprobación'],
+    ['asignacion_presupuestaria', 'Asignación presup.', 'Asignación presupuestaria'],
+    ['inicio_ejecucion', 'Inicio ejecución'],
+    ['termino_ejecucion', 'Término ejecución'],
+];
+
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function formatMes(valor) {
+    const m = /^(\d{4})-(\d{2})/.exec(valor || '');
+    return m ? `${MESES_CORTOS[Number(m[2]) - 1]} ${m[1]}` : null;
+}
+
+// Línea de tiempo horizontal: un punto por hito, relleno si la fuente trae
+// la fecha y vacío ("—") si no. Los hitos que no aplican al proyecto se
+// omiten. Si no hay ningún hito con fecha, no se muestra.
+function renderLineaTiempo(lineaTiempo) {
+    if (!lineaTiempo) return '';
+    const hitos = HITOS_LINEA_TIEMPO
+        .filter(([clave]) => !noAplica(lineaTiempo[clave]))
+        .map(([clave, etiqueta, nombreCompleto]) => ({
+            etiqueta,
+            nombreCompleto: nombreCompleto || etiqueta,
+            fecha: formatMes(lineaTiempo[clave]),
+        }));
+    if (!hitos.some(h => h.fecha)) return '';
+
+    return `
+        <div class="timeline">
+            <div class="timeline-title">Línea de tiempo</div>
+            <ol class="timeline-steps">
+                ${hitos.map(h => `
+                <li class="timeline-step ${h.fecha ? 'is-done' : 'is-missing'}" title="${h.nombreCompleto}${h.fecha ? ': ' + h.fecha : ': sin información'}">
+                    <span class="timeline-dot"></span>
+                    <span class="timeline-label">${h.etiqueta}</span>
+                    <span class="timeline-date">${h.fecha || '—'}</span>
+                </li>`).join('')}
+            </ol>
+        </div>
+    `;
+}
+
+function textoUbicacion(project) {
+    if (project.ubicacion_tipo === 'centroide') {
+        return '<p class="popup-ubicacion-nota"><em>Ubicación aproximada (centro de la comuna, sin coordenada válida en la fuente).</em></p>';
+    }
+    if (project.ubicacion_aproximada) {
+        return '<p class="popup-ubicacion-nota"><em>Ubicación aproximada.</em></p>';
+    }
+    return '';
 }
 
 // Orden Norte -> Austral para mostrar el desglose por zona siempre igual,
@@ -661,7 +818,7 @@ const ORDEN_ZONAS = ['Norte', 'Centro', 'Sur', 'Austral'];
 
 // Resumen general (no depende de ningún filtro): cantidad de proyectos por
 // zona y los proyectos geográficamente más extremos (más austral/más
-// septentrional), calculados sobre los 293 proyectos reales cargados.
+// septentrional), calculados sobre todos los proyectos cargados.
 function renderGeneralStats() {
     const statsPanel = document.getElementById('generalStats');
     if (!statsPanel) return;
@@ -709,13 +866,13 @@ function renderGeneralStats() {
         : null;
 
     const porComuna = {};
-    Object.entries(projectsByCommune).forEach(([comuna, arr]) => {
-        if (comuna !== '__sin_comuna__') porComuna[comuna] = arr.length;
+    todos.forEach(p => {
+        if (p.comuna !== '__sin_comuna__') porComuna[p.comuna] = (porComuna[p.comuna] || 0) + 1;
     });
     const [comunaTop, cantidadTop] = Object.entries(porComuna).sort((a, b) => b[1] - a[1])[0] || [null, 0];
 
     const zonasHtml = zonasOrdenadas.map(zona => `
-        <div class="zona-row">
+        <div class="zona-row${zona === zonaActiva ? ' active' : ''}" data-zona="${zona}" title="Mostrar solo los proyectos de la zona ${zona}">
             <span class="zona-label">${zona}</span>
             <span class="zona-count">${porZona[zona]}</span>
         </div>
@@ -760,6 +917,10 @@ function renderGeneralStats() {
         });
     });
 
+    statsPanel.querySelectorAll('.zona-row[data-zona]').forEach(el => {
+        el.addEventListener('click', () => filtrarPorZona(el.dataset.zona));
+    });
+
     statsPanel.querySelectorAll('.stat-highlight[data-comuna]').forEach(el => {
         el.addEventListener('click', () => {
             if (aplicarFiltrosPorComuna(el.dataset.comuna)) {
@@ -768,6 +929,175 @@ function renderGeneralStats() {
         });
     });
 }
+
+//=============== PANEL DE BENEFICIARIOS (derecha) ===============//
+
+const statsPanelEl = document.getElementById('statsPanel');
+const statsPanelBody = document.getElementById('statsPanelBody');
+
+const COLOR_HOMBRES = '#2f6fbd';
+const COLOR_MUJERES = '#c2477d';
+
+function sumaNumerica(projects, campo) {
+    return projects.reduce((acc, p) => {
+        const v = typeof campo === 'function' ? campo(p) : p[campo];
+        return typeof v === 'number' ? acc + v : acc;
+    }, 0);
+}
+
+function porcentaje(parte, total) {
+    return total > 0 ? Math.round((parte / total) * 100) : 0;
+}
+
+// Se recalcula cada vez que cambia el conjunto de proyectos visibles
+// (filtros de Región/Provincia/Comuna, zona, Limpiar).
+// El panel cuenta solo los proyectos de la selección actual que quedan
+// dentro de la pantalla: se recalcula con cada zoom / desplazamiento. Si hay
+// un proyecto seleccionado (popup abierto) el panel sigue mostrando ese.
+function actualizarPanelSegunVista() {
+    if (proyectoSeleccionado) return;
+    const bounds = limitesVisibles();
+    const enPantalla = proyectosVisibles.filter(p =>
+        typeof p.lat === 'number' && typeof p.lng === 'number' && bounds.contains([p.lat, p.lng])
+    );
+    renderPanelBeneficiarios(enPantalla, alcanceActual, null, proyectosVisibles.length);
+}
+
+// Límites del mapa descontando lo que tapa el propio panel derecho (en
+// pantallas angostas el panel cubre todo, así que se usa el mapa completo).
+function limitesVisibles() {
+    const size = map.getSize();
+    const tapado = statsPanelEl.classList.contains('active') ? statsPanelEl.offsetWidth : 0;
+    const ancho = tapado > 0 && tapado < size.x ? size.x - tapado : size.x;
+    return L.latLngBounds(
+        map.containerPointToLatLng([0, size.y]),
+        map.containerPointToLatLng([ancho, 0])
+    );
+}
+
+map.on('moveend', actualizarPanelSegunVista);
+
+// Con `volverA` el panel muestra un solo proyecto seleccionado, con un link
+// para volver a la selección completa (`volverA` es su nombre). Con
+// `totalSeleccion` indica cuántos de la selección quedan en pantalla.
+function renderPanelBeneficiarios(projects, alcance, volverA = null, totalSeleccion = projects.length) {
+    if (!statsPanelBody) return;
+
+    const conTotal = projects.filter(p => typeof p.participantes === 'number');
+    const total = sumaNumerica(conTotal, 'participantes');
+
+    const conSexo = projects.filter(p => typeof p.beneficiarios_hombres === 'number' || typeof p.beneficiarios_mujeres === 'number');
+    const hombres = sumaNumerica(conSexo, 'beneficiarios_hombres');
+    const mujeres = sumaNumerica(conSexo, 'beneficiarios_mujeres');
+    const totalSexo = hombres + mujeres;
+    const pctH = porcentaje(hombres, totalSexo);
+    const pctM = totalSexo > 0 ? 100 - pctH : 0;
+
+    const porLinea = Object.keys(LINEAS_TRABAJO).map(linea => {
+        const delaLinea = projects.filter(p => p.linea_trabajo === linea);
+        return { linea, valor: sumaNumerica(delaLinea, 'participantes'), proyectos: delaLinea.length };
+    });
+    const maxLinea = Math.max(1, ...porLinea.map(l => l.valor));
+
+    statsPanelBody.innerHTML = `
+        ${volverA ? `
+        <div class="stats-scope stats-scope-proyecto">
+            <span class="stats-scope-kicker">Proyecto seleccionado</span>
+            <span class="stats-scope-label">${alcance}</span>
+            <button type="button" class="stats-back" id="statsBack">← Volver a ${volverA}</button>
+        </div>` : `
+        <div class="stats-scope">
+            <span class="stats-scope-label">${alcance}</span>
+            <span class="stats-scope-count">${projects.length === totalSeleccion
+                ? `${formatNumber(projects.length)} proyectos`
+                : `${formatNumber(projects.length)} de ${formatNumber(totalSeleccion)} en pantalla`}</span>
+        </div>`}
+
+        <section class="stats-block">
+            <div class="stats-hero">${conTotal.length ? formatNumber(Math.round(total)) : 'S/I'}</div>
+            <div class="stats-hero-label">beneficiarios directos</div>
+            ${volverA ? '' : `<div class="stats-note">Informados en ${formatNumber(conTotal.length)} de ${formatNumber(projects.length)} proyectos</div>`}
+        </section>
+
+        <section class="stats-block">
+            <h3 class="stats-block-title">Por sexo</h3>
+            ${totalSexo > 0 ? `
+            <div class="sexo-tiles">
+                <div class="sexo-tile">
+                    <span class="sexo-icon" style="background:${COLOR_HOMBRES};" aria-hidden="true">♂</span>
+                    <div>
+                        <div class="sexo-value">${formatNumber(hombres)}</div>
+                        <div class="sexo-label">Hombres · ${pctH}%</div>
+                    </div>
+                </div>
+                <div class="sexo-tile">
+                    <span class="sexo-icon" style="background:${COLOR_MUJERES};" aria-hidden="true">♀</span>
+                    <div>
+                        <div class="sexo-value">${formatNumber(mujeres)}</div>
+                        <div class="sexo-label">Mujeres · ${pctM}%</div>
+                    </div>
+                </div>
+            </div>
+            <div class="split-bar" role="img" aria-label="Hombres ${pctH}%, mujeres ${pctM}%">
+                ${hombres > 0 ? `<span class="split-seg" style="flex:${hombres}; background:${COLOR_HOMBRES};" title="Hombres: ${formatNumber(hombres)} (${pctH}%)"></span>` : ''}
+                ${mujeres > 0 ? `<span class="split-seg" style="flex:${mujeres}; background:${COLOR_MUJERES};" title="Mujeres: ${formatNumber(mujeres)} (${pctM}%)"></span>` : ''}
+            </div>
+            ${volverA ? '' : `<div class="stats-note">Desglose informado en ${formatNumber(conSexo.length)} de ${formatNumber(projects.length)} proyectos</div>`}
+            ` : '<div class="stats-note">Sin desglose por sexo en esta selección.</div>'}
+        </section>
+
+        ${volverA ? '' : `
+        <section class="stats-block">
+            <h3 class="stats-block-title">Por línea de trabajo</h3>
+            ${porLinea.map(l => `
+            <div class="linea-row" title="${l.linea}: ${formatNumber(l.valor)} beneficiarios en ${l.proyectos} proyectos">
+                <div class="linea-row-head">
+                    <span class="linea-swatch" style="background:${LINEAS_TRABAJO[l.linea].fill};"></span>
+                    <span class="linea-name">${l.linea}</span>
+                    <span class="linea-value">${formatNumber(Math.round(l.valor))}</span>
+                </div>
+                <div class="linea-track">
+                    ${l.valor > 0 ? `<span class="linea-bar" style="width:${(l.valor / maxLinea) * 100}%; background:${LINEAS_TRABAJO[l.linea].fill};"></span>` : ''}
+                </div>
+            </div>`).join('')}
+        </section>`}
+    `;
+
+    // "Volver" cierra el popup; su evento popupclose restaura el panel.
+    const back = document.getElementById('statsBack');
+    if (back) back.addEventListener('click', () => map.closePopup());
+}
+
+function abrirPanelBeneficiarios() {
+    statsPanelEl.classList.add('active');
+    document.body.classList.add('stats-open');
+    actualizarPanelSegunVista();
+}
+
+function cerrarPanelBeneficiarios() {
+    statsPanelEl.classList.remove('active');
+    document.body.classList.remove('stats-open');
+}
+
+document.getElementById('closeStatsPanel').addEventListener('click', cerrarPanelBeneficiarios);
+
+// Botón para abrir/cerrar el panel, debajo del zoom (arriba a la derecha).
+const statsToggle = L.control({ position: 'topright' });
+statsToggle.onAdd = function() {
+    const btn = L.DomUtil.create('button', 'stats-toggle');
+    btn.type = 'button';
+    btn.title = 'Mostrar/Ocultar beneficiarios';
+    btn.innerHTML = '📊';
+    L.DomEvent.disableClickPropagation(btn);
+    L.DomEvent.on(btn, 'click', () => {
+        statsPanelEl.classList.contains('active') ? cerrarPanelBeneficiarios() : abrirPanelBeneficiarios();
+    });
+    return btn;
+};
+statsToggle.addTo(map);
+
+// En pantallas grandes el panel parte abierto.
+if (window.innerWidth >= 1100) abrirPanelBeneficiarios();
 
 //=============== CARRUSEL DE FOTOS ===============//
 
@@ -827,16 +1157,17 @@ const legend = L.control({ position: 'bottomright' });
 legend.onAdd = function(map) {
     var div = L.DomUtil.create('div', 'legend');
     div.innerHTML = `
-        <h4>Referencia</h4>
+        <h4>Línea de trabajo</h4>
+        ${Object.entries(LINEAS_TRABAJO).map(([linea, color]) => `
         <div class="legend-item">
-            <span class="legend-dot" style="background:#3498db; border-color:#2980b9;"></span>
-            Proyecto
-        </div>
+            <span class="legend-dot" style="background:${color.fill}; border-color:${color.borde};"></span>
+            ${linea}
+        </div>`).join('')}
         <p style="font-size: 11px; color: #7f8c8d; margin: 10px 0 0 0;">
-            Huella Local — Proyectos comunitarios
+            Fuente de datos: Fundación Huella Local
         </p>
         <p style="font-size: 10px; color: #95a5a6; margin: 4px 0 0 0;">
-            Construido por <a href="https://dannlebeau.github.io/ownroute.github.io/" target="_blank" rel="noopener" style="color:#3498db;">Dann LeBeau</a> © 2026
+            Construido por <a href="https://dannlebeau.github.io/ownroute.github.io/" target="_blank" rel="noopener" style="color:#3498db;">Dann LeBeau</a> © ${new Date().getFullYear()}
         </p>
     `;
     return div;

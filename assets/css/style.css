@@ -501,7 +501,7 @@ body, html {
 
 .popup-content {
     padding: 15px;
-    min-width: 280px;
+    min-width: 310px;
 }
 
 .popup-content h4 {
@@ -519,6 +519,95 @@ body, html {
 .popup-content strong {
     color: #2c3e50;
     font-weight: 600;
+}
+
+.popup-content .popup-ubicacion-nota {
+    color: #b7950b;
+    font-size: 12px;
+}
+
+/* ========== LÍNEA DE TIEMPO DEL PROYECTO (popup) ========== */
+.timeline {
+    margin: 12px 0 6px;
+}
+
+.timeline-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.timeline-steps {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.timeline-step {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 2px;
+}
+
+/* Tramo que une cada punto con el anterior */
+.timeline-step + .timeline-step::before {
+    content: '';
+    position: absolute;
+    top: 5px;
+    right: 50%;
+    width: 100%;
+    height: 2px;
+    background: #d5dbdb;
+}
+
+.timeline-step.is-done + .timeline-step.is-done::before {
+    background: #3498db;
+}
+
+.timeline-dot {
+    position: relative;
+    z-index: 1;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #bdc3c7;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.timeline-step.is-done .timeline-dot {
+    background: #3498db;
+    border-color: #2980b9;
+}
+
+.timeline-label {
+    margin-top: 5px;
+    font-size: 10px;
+    line-height: 1.2;
+    color: #2c3e50;
+}
+
+.timeline-date {
+    margin-top: 2px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #2980b9;
+    white-space: nowrap;
+}
+
+.timeline-step.is-missing .timeline-label,
+.timeline-step.is-missing .timeline-date {
+    color: #aab7b8;
+    font-weight: 400;
 }
 
 .popup-photos-thumbs {
@@ -543,7 +632,7 @@ body, html {
 }
 
 /* ========== ENCABEZADO DE PROYECTO (usado en sidebar y popups) ========== */
-.mesa-project-header {
+.project-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -551,7 +640,7 @@ body, html {
     gap: 8px;
 }
 
-.mesa-project-type {
+.project-type {
     font-size: 10px;
     background: #ecf0f1;
     color: #7f8c8d;
@@ -563,7 +652,7 @@ body, html {
     white-space: nowrap;
 }
 
-.mesa-project-status {
+.project-status {
     font-size: 10px;
     padding: 3px 10px;
     border-radius: 20px;
@@ -760,6 +849,290 @@ body, html {
     display: inline-block;
 }
 
+/* ========== PANEL DE BENEFICIARIOS (derecha) ========== */
+.stats-panel {
+    position: fixed;
+    right: -320px;
+    top: 0;
+    width: 320px;
+    height: 100vh;
+    background: white;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+    z-index: 1001;
+    overflow-y: auto;
+    transition: right 0.3s ease;
+}
+
+.stats-panel.active {
+    right: 0;
+}
+
+/* Con el panel abierto, los controles de la derecha (capas, zoom, leyenda)
+   se corren para no quedar tapados. */
+.leaflet-right {
+    transition: right 0.3s ease;
+}
+
+body.stats-open .leaflet-right {
+    right: 320px;
+}
+
+.stats-toggle {
+    width: 34px;
+    height: 34px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    background: white;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    background-clip: padding-box;
+}
+
+.stats-toggle:hover {
+    background-color: #f4f4f4;
+}
+
+.stats-panel-body {
+    padding: 0 15px 20px;
+}
+
+.stats-scope {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    padding: 12px 0;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.stats-scope-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.stats-scope-proyecto {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.stats-scope-kicker {
+    font-size: 10px;
+    font-weight: 600;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stats-back {
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2471a3;
+    cursor: pointer;
+}
+
+.stats-back:hover {
+    text-decoration: underline;
+}
+
+.stats-scope-count {
+    font-size: 12px;
+    color: #7f8c8d;
+    white-space: nowrap;
+}
+
+.stats-block {
+    padding: 16px 0;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.stats-block:last-child {
+    border-bottom: none;
+}
+
+.stats-block-title {
+    margin: 0 0 12px 0;
+    color: #2c3e50;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stats-hero {
+    font-size: 36px;
+    font-weight: 700;
+    color: #2c3e50;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.stats-hero-label {
+    font-size: 13px;
+    color: #555;
+    margin-top: 2px;
+}
+
+.stats-note {
+    font-size: 11px;
+    color: #7f8c8d;
+    margin-top: 8px;
+}
+
+.sexo-tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.sexo-tile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sexo-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sexo-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2c3e50;
+    font-variant-numeric: tabular-nums;
+}
+
+.sexo-label {
+    font-size: 11px;
+    color: #7f8c8d;
+}
+
+/* Barra partida hombres/mujeres: 2px de separación entre segmentos */
+.split-bar {
+    display: flex;
+    gap: 2px;
+    height: 12px;
+}
+
+.split-seg {
+    min-width: 2px;
+}
+
+.split-seg:first-child {
+    border-radius: 4px 0 0 4px;
+}
+
+.split-seg:last-child {
+    border-radius: 0 4px 4px 0;
+}
+
+.split-seg:only-child {
+    border-radius: 4px;
+}
+
+.linea-row {
+    margin-bottom: 12px;
+}
+
+.linea-row:last-child {
+    margin-bottom: 0;
+}
+
+.linea-row-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.linea-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.linea-name {
+    flex: 1;
+    color: #2c3e50;
+}
+
+.linea-value {
+    font-weight: 600;
+    color: #2c3e50;
+    font-variant-numeric: tabular-nums;
+}
+
+.linea-track {
+    height: 10px;
+    background: #f2f4f4;
+    border-radius: 0 4px 4px 0;
+}
+
+.linea-bar {
+    display: block;
+    height: 100%;
+    min-width: 2px;
+    border-radius: 0 4px 4px 0;
+}
+
+/* Zonas del resumen general: clic para filtrar */
+.zona-row[data-zona] {
+    cursor: pointer;
+    padding: 4px 6px;
+    margin: 0 -6px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.zona-row[data-zona]:hover {
+    background: #eaf2fd;
+}
+
+.zona-row.active {
+    background: #3498db;
+    color: white;
+    font-weight: 600;
+}
+
+.zona-row.active:hover {
+    background: #2980b9;
+}
+
+.zona-row.active .zona-count {
+    background: white;
+}
+
+/* Link a Google Maps en el popup */
+.popup-gmaps-link {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2471a3;
+    text-decoration: none;
+}
+
+.popup-gmaps-link:hover {
+    text-decoration: underline;
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {
     .sidebar {
@@ -781,5 +1154,14 @@ body, html {
 
     .popup-content {
         min-width: 250px;
+    }
+
+    .stats-panel {
+        width: 100%;
+        right: -100%;
+    }
+
+    body.stats-open .leaflet-right {
+        right: 0;
     }
 }

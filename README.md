@@ -11,11 +11,8 @@ interfaz_huella_local/
 │   ├── Comunas.geojson                # Límites y jerarquía Región/Provincia/Comuna
 │   │                                     (regiones, provincias y comunas se extraen
 │   │                                     de acá en tiempo real, no hay JSON aparte)
-│   ├── proyectos_comunas.json         # 293 proyectos reales, agrupados por comuna
-│   │                                     (fuente: Resumen_proyectos.xlsx de Huella Local)
-│   └── mesas_territoriales/           # En pausa: la interfaz ya no carga estos
-│                                         datos (eran de ejemplo). Se dejan los
-│                                         archivos por si se retoman más adelante.
+│   └── proyectos_comunas.json         # 482 proyectos, agrupados por comuna
+│                                         (fuente: origen/Resumen_Proyectos_Huella_Local.xlsx)
 ├── assets/
 │   ├── css/
 │   │   └── style.css      # Estilos de la aplicación
@@ -32,9 +29,12 @@ interfaz_huella_local/
   Topográfico y OpenTopoMap. Positron es el default porque siempre renderiza
   bien a cualquier zoom; el resto son alternativas para explorar (satelital,
   oscuro, relieve)
-- 📍 **Los 293 proyectos se muestran desde el inicio**, sin necesidad de filtrar
+- 📍 **Los 482 proyectos se muestran desde el inicio**, sin necesidad de filtrar
 - 🔍 **Filtros jerárquicos**: Región → Provincia → Comuna (acotan qué proyectos se ven)
 - 📍 **Proyectos geolocalizados**, con zoom in automático al pinchar uno (desde el mapa o el sidebar)
+- 🧭 **Filtro por zona**: en el Resumen general, pinchar Norte / Centro / Sur / Austral muestra solo esos proyectos (pinchar de nuevo la misma zona vuelve a todos)
+- 📊 **Panel de beneficiarios** (derecha, botón 📊): total de beneficiarios directos, desglose hombres ♂ / mujeres ♀ y por línea de trabajo; cuenta solo los proyectos que se ven en pantalla, así que se recalcula con cada filtro, zoom o desplazamiento, y al pinchar un proyecto muestra solo ese
+- 🔗 **Link a Google Maps** en el popup de cada proyecto, para revisar/corregir su ubicación
 - 📷 **Carrusel de fotos** por proyecto (opcional, ver sección "Fotos de proyectos" abajo)
 - 📊 **Tooltips** con: nombre, monto, participantes, porcentaje de avance
 - 🎨 **Interfaz moderna** con sidebar ocultable
@@ -42,7 +42,7 @@ interfaz_huella_local/
 
 ## 🚀 Uso
 
-1. Abre `index.html` en tu navegador — el mapa carga con los 293 proyectos ya visibles como puntos azules
+1. Abre `index.html` en tu navegador — el mapa carga con los 482 proyectos ya visibles como puntos azules
 2. (Opcional) Haz click en el botón ☰ para abrir los filtros y acotar la vista:
    - **Región** (se cargan automáticamente las provincias)
    - **Provincia** (se cargan automáticamente las comunas)
@@ -58,41 +58,67 @@ Agrupado por comuna (el nombre debe calzar exacto con la propiedad `Comuna` de
 `Comunas.geojson`). Los proyectos sin comuna real identificable en la fuente
 (por ejemplo, un estudio a nivel regional) quedan bajo la clave especial
 `__sin_comuna__` en vez de perderse. Cuando la fuente no traía un dato, el
-campo queda como el string `"S/I"` en lugar de inventarlo; cuando no traía
-coordenadas válidas, se usa el centroide de la comuna como ubicación
-aproximada y `ubicacion_aproximada` queda en `true`.
+campo queda como el string `"S/I"` en lugar de inventarlo. Si en el Excel
+viene `NA` (no aplica a ese proyecto) queda como `"N/A"` y la interfaz no
+muestra ese dato (ni ese hito en la línea de tiempo).
+
+La interfaz oculta por ahora los tipos `Servicios_Profesionales` y
+`Estudios_Territoriales` (constante `TIPOS_OCULTOS` en `map.js`), y colorea
+cada proyecto según su línea de trabajo (Inversión Pública, Ejecución de
+Obras, Asistencia Técnica).
+
+Coordenadas: se calculan desde `UTM Este` / `UTM Norte` / `UTM Huso` (WGS84)
+y se validan contra el polígono de la comuna. `ubicacion_tipo` indica el
+resultado: `exacta`, `aproximada` (UTM redondeada al km o unos km fuera del
+borde, p.ej. islas o costa) o `centroide` (la coordenada de la fuente cae
+lejos de su comuna o no existe, y se usa el centro de la comuna). El script
+imprime la lista de proyectos que quedaron en centroide para corregirlos en
+el Excel.
+
+`linea_tiempo` trae los hitos (postulación o entrega, aprobación, asignación
+presupuestaria, inicio y término de ejecución) como `YYYY-MM`, igual que la
+fuente, que registra las fechas a nivel de mes.
 
 ```json
 {
   "Mejillones": [
     {
-      "id": "MEJ 22_03 EQC",
-      "name": "Prefactibilidad Construcción Terminal de Buses",
-      "tipo": "Equipamiento",
-      "estado": "Desarrollo",
-      "estado_key": "desarrollo",
-      "monto": 3232569800,
-      "aportes_diseno": 159650000,
+      "id": "MEJ 22_06 PLA",
+      "codigo_fhl": "MEJ 22_06 PLA",
+      "name": "Mejoramiento Plaza de Los Profesores",
+      "tipo": "Espacios_Públicos",
+      "subcategoria": "Plazas",
+      "linea_trabajo": "Inversión Pública",
+      "estado": "Cerrado",
+      "estado_key": "cerrado",
+      "monto": 0,
+      "aportes_diseno": 7136000,
+      "financiamiento": "PMU",
+      "socio": "M_MEJ",
+      "anio_convenio": 2022,
       "participantes": "S/I",
-      "fecha_inicio": "S/I",
-      "fecha_termino": "S/I",
+      "beneficiarios_hombres": "S/I",
+      "beneficiarios_mujeres": "S/I",
+      "magnitud": "S/I",
+      "unidad": "S/I",
+      "linea_tiempo": {
+        "postulacion": "S/I",
+        "aprobacion": "S/I",
+        "asignacion_presupuestaria": "S/I",
+        "inicio_ejecucion": "S/I",
+        "termino_ejecucion": "S/I"
+      },
       "region": "Antofagasta",
       "zona": "Norte",
       "convenio": "Vigente",
-      "lat": -23.110747,
-      "lng": -70.450211,
-      "ubicacion_aproximada": false
+      "lat": -23.107936,
+      "lng": -70.444231,
+      "ubicacion_aproximada": false,
+      "ubicacion_tipo": "exacta"
     }
   ]
 }
 ```
-
-### mesas_territoriales/
-
-Estructura equivalente pero por mesa territorial en vez de por comuna —
-todavía con datos de ejemplo, porque las mesas reales no están definidas.
-Cuando se definan, conviene regenerarlas con el mismo criterio (nada
-inventado, `"S/I"` para lo que falte) que `proyectos_comunas.json`.
 
 ## 🔧 Personalización
 
@@ -117,10 +143,15 @@ simplemente no muestra el link de fotos.
 
 ### Agregar o actualizar proyectos
 
-Editar `data/proyectos_comunas.json` directamente (agrupado por comuna, ver
-estructura arriba), o volver a exportar desde el Excel fuente y regenerar el
-archivo con el mismo criterio: nada de datos inventados, `"S/I"` para lo que
-falte.
+Actualizar el Excel `origen/Resumen_Proyectos_Huella_Local.xlsx` (hoja
+PROYECTOS) y regenerar el JSON:
+
+```
+python scripts/transformar_proyectos.py
+```
+
+Mismo criterio de siempre: nada de datos inventados, `"S/I"` para lo que
+falte. Requiere `pandas`, `openpyxl`, `pyproj` y `shapely`.
 
 ### Cambiar estilos
 
