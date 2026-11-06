@@ -531,6 +531,8 @@ function filtrarPorZona(zona) {
 }
 
 // Tipos que por ahora no se muestran en la interfaz (siguen en el JSON).
+// Excepción: los fondos adjudicados (MIDESO, DGA; marcados por el script con
+// fondo_adjudicado) se muestran siempre.
 const TIPOS_OCULTOS = new Set(['Servicios_Profesionales', 'Estudios_Territoriales']);
 
 // Color de cada proyecto según su línea de trabajo (columna "Línea de
@@ -550,7 +552,8 @@ function colorLineaTrabajo(linea) {
 // comuna incluida en cada proyecto (útil para filtrar/agrupar).
 function getAllProjects() {
     return Object.entries(projectsByCommune).flatMap(([comuna, arr]) =>
-        arr.filter(p => !TIPOS_OCULTOS.has(p.tipo)).map(p => ({ ...p, comuna }))
+        arr.filter(p => !TIPOS_OCULTOS.has(p.tipo) || p.fondo_adjudicado)
+            .map(p => ({ ...p, comuna }))
     );
 }
 
@@ -677,10 +680,10 @@ function addProjectMarker(project) {
                 <span class="project-status status-${project.estado_key}">${project.estado}</span>
             </div>
             <h4>${project.name}</h4>
-            ${noAplica(project.monto) ? '' : `<p><strong>Monto:</strong> ${formatMonto(project.monto)}</p>`}
-            ${noAplica(project.participantes) ? '' : `<p><strong>Beneficiarios:</strong> ${formatCantidad(project.participantes)}</p>`}
-            <p><strong>Región:</strong> ${project.region} &middot; <strong>Comuna:</strong> ${project.comuna}</p>
-            ${tieneDato(project.socio) ? `<p><strong>Socio / Empresa:</strong> ${project.socio}</p>` : ''}
+            ${noAplica(project.monto) ? '' : `<p><strong>${project.fondo_adjudicado ? 'Monto adjudicado' : 'Monto'}:</strong> ${formatMonto(project.monto)}</p>`}
+            ${noAplica(project.participantes) ? '' : `<p><strong>${project.fondo_adjudicado ? 'Habitantes (Censo)' : 'Beneficiarios'}:</strong> ${formatCantidad(project.participantes)}</p>`}
+            <p><strong>Región:</strong> ${project.region} &middot; <strong>Comuna:</strong> ${nombreComuna(project.comuna)}</p>
+            ${tieneDato(project.socio) ? `<p><strong>${project.fondo_adjudicado ? 'Fondo adjudicado' : 'Socio / Empresa'}:</strong> ${project.socio}</p>` : ''}
             ${tieneDato(project.financiamiento) ? `<p><strong>Financiamiento:</strong> ${project.financiamiento}</p>` : ''}
             ${typeof project.magnitud === 'number' ? `<p><strong>Magnitud:</strong> ${formatNumber(project.magnitud)}${tieneDato(project.unidad) ? ' ' + project.unidad : ''}</p>` : ''}
             ${renderLineaTiempo(project.linea_tiempo)}
@@ -814,7 +817,13 @@ function textoUbicacion(project) {
 
 // Orden Norte -> Austral para mostrar el desglose por zona siempre igual,
 // independiente del orden en que aparezcan en los datos.
-const ORDEN_ZONAS = ['Norte', 'Centro', 'Sur', 'Austral'];
+const ORDEN_ZONAS = ['Norte', 'Centro', 'Sur', 'Austral', 'Transversal'];
+
+// Los proyectos sin una comuna única (alcance nacional o varias comunas)
+// vienen agrupados bajo "__sin_comuna__" en el JSON.
+function nombreComuna(comuna) {
+    return comuna === '__sin_comuna__' ? 'Varias comunas' : comuna;
+}
 
 // Resumen general (no depende de ningún filtro): cantidad de proyectos por
 // zona y los proyectos geográficamente más extremos (más austral/más
@@ -884,7 +893,7 @@ function renderGeneralStats() {
             <div class="stat-highlight" data-project-id="${proyecto.id}">
                 <span class="stat-highlight-label">${titulo}</span>
                 <strong>${proyecto.name}</strong>
-                <small>${proyecto.comuna}${valorExtra ? ' · ' + valorExtra : ''}</small>
+                <small>${nombreComuna(proyecto.comuna)}${valorExtra ? ' · ' + valorExtra : ''}</small>
             </div>
         `;
     };
@@ -995,7 +1004,12 @@ function renderPanelBeneficiarios(projects, alcance, volverA = null, totalSelecc
 
     const porLinea = Object.keys(LINEAS_TRABAJO).map(linea => {
         const delaLinea = projects.filter(p => p.linea_trabajo === linea);
-        return { linea, valor: sumaNumerica(delaLinea, 'participantes'), proyectos: delaLinea.length };
+        return {
+            linea,
+            valor: sumaNumerica(delaLinea, 'participantes'),
+            proyectos: delaLinea.length,
+            informados: delaLinea.filter(p => typeof p.participantes === 'number').length,
+        };
     });
     const maxLinea = Math.max(1, ...porLinea.map(l => l.valor));
 
@@ -1050,11 +1064,11 @@ function renderPanelBeneficiarios(projects, alcance, volverA = null, totalSelecc
         <section class="stats-block">
             <h3 class="stats-block-title">Por línea de trabajo</h3>
             ${porLinea.map(l => `
-            <div class="linea-row" title="${l.linea}: ${formatNumber(l.valor)} beneficiarios en ${l.proyectos} proyectos">
+            <div class="linea-row" title="${l.linea}: ${l.informados ? formatNumber(Math.round(l.valor)) + ' beneficiarios' : 'sin beneficiarios informados'} · ${l.proyectos} proyectos">
                 <div class="linea-row-head">
                     <span class="linea-swatch" style="background:${LINEAS_TRABAJO[l.linea].fill};"></span>
-                    <span class="linea-name">${l.linea}</span>
-                    <span class="linea-value">${formatNumber(Math.round(l.valor))}</span>
+                    <span class="linea-name">${l.linea} <span class="linea-count">· ${formatNumber(l.proyectos)} ${l.proyectos === 1 ? 'proyecto' : 'proyectos'}</span></span>
+                    <span class="linea-value">${l.informados ? formatNumber(Math.round(l.valor)) : (l.proyectos ? 'S/I' : '—')}</span>
                 </div>
                 <div class="linea-track">
                     ${l.valor > 0 ? `<span class="linea-bar" style="width:${(l.valor / maxLinea) * 100}%; background:${LINEAS_TRABAJO[l.linea].fill};"></span>` : ''}

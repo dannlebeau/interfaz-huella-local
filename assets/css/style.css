@@ -1073,6 +1073,11 @@ body.stats-open .leaflet-right {
     color: #2c3e50;
 }
 
+.linea-count {
+    color: #7f8c8d;
+    font-size: 11px;
+}
+
 .linea-value {
     font-weight: 600;
     color: #2c3e50;

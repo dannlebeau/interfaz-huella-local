@@ -63,7 +63,11 @@ viene `NA` (no aplica a ese proyecto) queda como `"N/A"` y la interfaz no
 muestra ese dato (ni ese hito en la línea de tiempo).
 
 La interfaz oculta por ahora los tipos `Servicios_Profesionales` y
-`Estudios_Territoriales` (constante `TIPOS_OCULTOS` en `map.js`), y colorea
+`Estudios_Territoriales` (constante `TIPOS_OCULTOS` en `map.js`), salvo los
+fondos adjudicados: proyectos de "Varias comunas" financiados por MIDESO o
+DGA (`FONDOS_ADJUDICADOS` en el script). Esos van en zona `Transversal`, se
+muestran siempre y en el popup dicen "Fondo adjudicado", "Monto adjudicado"
+y "Habitantes (Censo)". Además colorea
 cada proyecto según su línea de trabajo (Inversión Pública, Ejecución de
 Obras, Asistencia Técnica).
 

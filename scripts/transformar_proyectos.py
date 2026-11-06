@@ -94,6 +94,14 @@ ZONA_POR_REGION = {
     "Magallanes": "Austral",
 }
 
+RENOMBRE_ZONA = {"Varias": "Transversal"}
+
+# Fondos adjudicados por la fundación (no son socios/empresas como tal).
+# Un proyecto de "Varias comunas" financiado por uno de estos es un caso
+# especial: zona Transversal, fondo_adjudicado = true. En la interfaz su monto
+# es "Monto adjudicado" y sus beneficiarios son habitantes según Censo.
+FONDOS_ADJUDICADOS = {"MIDESO", "DGA"}
+
 # Hitos de la línea de tiempo, en orden: (clave JSON, columna Excel)
 HITOS = [
     ("postulacion", "Postulación o entrega"),
@@ -396,6 +404,12 @@ def main():
         zona = limpio(row["Zona"])
         if zona in (SI, NA):
             zona = ZONA_POR_REGION.get(region, SI)
+        # "Varias" en el Excel = proyectos de alcance nacional (fondos MIDESO).
+        zona = RENOMBRE_ZONA.get(zona, zona)
+        socio = limpio(row["Socio / Empresa"])
+        fondo_adjudicado = comuna is None and socio in FONDOS_ADJUDICADOS
+        if fondo_adjudicado:
+            zona = "Transversal"
 
         proyecto = {
             "id": pid,
@@ -409,7 +423,8 @@ def main():
             "monto": limpia_entero(row["Monto Inversión"]),
             "aportes_diseno": limpia_entero(row["Aportes para diseño"]),
             "financiamiento": limpio(row["Financiamiento"]),
-            "socio": limpio(row["Socio / Empresa"]),
+            "socio": socio,
+            "fondo_adjudicado": fondo_adjudicado,
             "anio_convenio": limpia_numero(row["Año convenio FHL"]),
             "participantes": limpia_numero(row["Beneficiarios Directos"]),
             "beneficiarios_hombres": limpia_numero(row["Beneficiarios hombres"]),
