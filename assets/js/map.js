@@ -19,20 +19,45 @@ var map = L.map('map').setView([-35.6751, -71.5430], 4);
 // nativas a ese nivel, `maxNativeZoom` hace que Leaflet reescale el último
 // tile disponible en vez de pedir uno inexistente -- eso es lo que evita el
 // cartel "Map data not yet available" de Esri World Imagery en zonas rurales.
-var cartoDBPositronLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-    attribution: '© CartoDB, © OpenStreetMap',
-    maxZoom: 19
-});
-
 var openStreetMapLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap'
 });
 
-var cartoDBDarkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
-    attribution: '© CartoDB, © OpenStreetMap',
-    maxZoom: 19
+// Mapas base de Esri (reemplazan a CARTO, que ahora exige API key). Los
+// lienzos gris claro / gris oscuro llevan aparte la capa de nombres, así que
+// se combinan base + referencias en un solo grupo.
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services';
+
+var esriStreetLayer = L.tileLayer(`${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}`, {
+    attribution: 'Tiles © Esri',
+    maxZoom: 19,
+    maxNativeZoom: 19
 });
+
+var esriLightGrayLayer = L.layerGroup([
+    L.tileLayer(`${ESRI}/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`, {
+        attribution: 'Tiles © Esri',
+        maxZoom: 19,
+        maxNativeZoom: 16
+    }),
+    L.tileLayer(`${ESRI}/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, {
+        maxZoom: 19,
+        maxNativeZoom: 16
+    })
+]);
+
+var esriDarkGrayLayer = L.layerGroup([
+    L.tileLayer(`${ESRI}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`, {
+        attribution: 'Tiles © Esri',
+        maxZoom: 19,
+        maxNativeZoom: 16
+    }),
+    L.tileLayer(`${ESRI}/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, {
+        maxZoom: 19,
+        maxNativeZoom: 16
+    })
+]);
 
 var esriWorldImageryLayer = L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles © Esri',
@@ -59,11 +84,12 @@ esriWorldImageryLayer.addTo(map);
 
 // Control de capas
 var baseMaps = {
-    "CartoDB Positron": cartoDBPositronLayer,
-    "OpenStreetMap": openStreetMapLayer,
-    "CartoDB Oscuro": cartoDBDarkLayer,
     "Esri Satelital": esriWorldImageryLayer,
+    "Esri Calles": esriStreetLayer,
+    "Esri Gris claro": esriLightGrayLayer,
+    "Esri Gris oscuro": esriDarkGrayLayer,
     "Esri Topográfico": esriWorldTopoLayer,
+    "OpenStreetMap": openStreetMapLayer,
     "OpenTopoMap": openTopoMapLayer,
 };
 
@@ -121,7 +147,7 @@ const applyBtn = document.getElementById('applyFilters');
 const resetBtn = document.getElementById('resetFilters');
 
 let projectMarkers = {}; // Almacenar markers de proyectos
-let regionesData = {};
+let regionesData = [];
 let provinciasData = {};
 let comunasData = {};
 let comunaInfo = {}; // comuna -> { region, provincia }, para aplicar filtros desde el resumen general
@@ -318,56 +344,81 @@ function getCentroid(geometry) {
     };
 }
 
+//=============== FILTROS SEGÚN LO QUE SE VE EN PANTALLA ===============//
+// Los selects de Región / Provincia / Comuna solo ofrecen las opciones que
+// tienen proyectos dentro de la pantalla (con su cantidad entre paréntesis),
+// y se recalculan con cada zoom o desplazamiento. La opción ya elegida se
+// mantiene aunque haya quedado fuera de la vista.
+
+let conteosEnPantalla = { region: {}, provincia: {}, comuna: {} };
+
+function contarProyectosEnPantalla() {
+    const bounds = limitesVisibles();
+    const conteos = { region: {}, provincia: {}, comuna: {} };
+    getAllProjects().forEach(p => {
+        if (typeof p.lat !== 'number' || typeof p.lng !== 'number' || !bounds.contains([p.lat, p.lng])) return;
+        const info = comunaInfo[p.comuna];
+        if (!info) return;
+        conteos.region[info.region] = (conteos.region[info.region] || 0) + 1;
+        conteos.provincia[info.provincia] = (conteos.provincia[info.provincia] || 0) + 1;
+        conteos.comuna[p.comuna] = (conteos.comuna[p.comuna] || 0) + 1;
+    });
+    conteosEnPantalla = conteos;
+}
+
+function poblarSelect(select, placeholder, valores, conteos, seleccion) {
+    const opciones = valores.filter(v => conteos[v] || v === seleccion);
+    select.innerHTML = `<option value="">${opciones.length ? placeholder : '-- Sin proyectos en pantalla --'}</option>` +
+        opciones.map(v => `<option value="${v}">${v} (${conteos[v] || 0})</option>`).join('');
+    select.value = seleccion || '';
+}
+
+function poblarRegiones(seleccion = regionSelect.value) {
+    poblarSelect(regionSelect, '-- Seleccionar Región --', regionesData, conteosEnPantalla.region, seleccion);
+}
+
+function poblarProvincias(region = regionSelect.value, seleccion = provinceSelect.value) {
+    if (!region || !provinciasData[region]) {
+        provinceSelect.innerHTML = '<option value="">-- Seleccionar Provincia --</option>';
+        provinceSelect.disabled = true;
+        return;
+    }
+    poblarSelect(provinceSelect, '-- Seleccionar Provincia --', provinciasData[region], conteosEnPantalla.provincia, seleccion);
+    provinceSelect.disabled = false;
+}
+
+function poblarComunas(provincia = provinceSelect.value, seleccion = communeSelect.value) {
+    if (!provincia || !comunasData[provincia]) {
+        communeSelect.innerHTML = '<option value="">-- Seleccionar Comuna --</option>';
+        communeSelect.disabled = true;
+        return;
+    }
+    poblarSelect(communeSelect, '-- Seleccionar Comuna --', comunasData[provincia].map(c => c.nombre), conteosEnPantalla.comuna, seleccion);
+    communeSelect.disabled = false;
+}
+
+function actualizarFiltrosSegunVista() {
+    if (!regionesData.length) return; // aún no cargan los datos
+    contarProyectosEnPantalla();
+    poblarRegiones();
+    poblarProvincias();
+    poblarComunas();
+}
+
 // Cargar regiones en el select
 function loadRegions() {
-    if (Array.isArray(regionesData)) {
-        regionesData.forEach(region => {
-            const option = document.createElement('option');
-            option.value = region;
-            option.textContent = region;
-            regionSelect.appendChild(option);
-        });
-    }
+    actualizarFiltrosSegunVista();
 }
 
 // Cargar provincias cuando se selecciona una región
 regionSelect.addEventListener('change', function() {
-    const selectedRegion = this.value;
-    provinceSelect.innerHTML = '<option value="">-- Seleccionar Provincia --</option>';
-    communeSelect.innerHTML = '<option value="">-- Seleccionar Comuna --</option>';
-    communeSelect.disabled = true;
-    
-    if (selectedRegion && provinciasData[selectedRegion]) {
-        const provinces = provinciasData[selectedRegion];
-        provinces.forEach(province => {
-            const option = document.createElement('option');
-            option.value = province;
-            option.textContent = province;
-            provinceSelect.appendChild(option);
-        });
-        provinceSelect.disabled = false;
-    } else {
-        provinceSelect.disabled = true;
-    }
+    poblarProvincias(this.value, '');
+    poblarComunas('', '');
 });
 
 // Cargar comunas cuando se selecciona una provincia
 provinceSelect.addEventListener('change', function() {
-    const selectedProvince = this.value;
-    communeSelect.innerHTML = '<option value="">-- Seleccionar Comuna --</option>';
-    
-    if (selectedProvince && comunasData[selectedProvince]) {
-        const communes = comunasData[selectedProvince];
-        communes.forEach(commune => {
-            const option = document.createElement('option');
-            option.value = commune.nombre;
-            option.textContent = commune.nombre;
-            communeSelect.appendChild(option);
-        });
-        communeSelect.disabled = false;
-    } else {
-        communeSelect.disabled = true;
-    }
+    poblarComunas(this.value, '');
 });
 
 // Aplicar filtros y centrar mapa
@@ -396,13 +447,7 @@ applyBtn.addEventListener('click', function() {
 
 // Limpiar filtros
 resetBtn.addEventListener('click', function() {
-    regionSelect.value = '';
-    provinceSelect.value = '';
-    provinceSelect.innerHTML = '<option value="">-- Seleccionar Provincia --</option>';
-    provinceSelect.disabled = true;
-    communeSelect.value = '';
-    communeSelect.innerHTML = '<option value="">-- Seleccionar Comuna --</option>';
-    communeSelect.disabled = true;
+    limpiarSelects();
 
     // Volver a mostrar todos los proyectos
     setZonaActiva(null);
@@ -475,11 +520,9 @@ function aplicarFiltrosPorComuna(comuna) {
     const info = comunaInfo[comuna];
     if (!info) return false;
 
-    regionSelect.value = info.region;
-    regionSelect.dispatchEvent(new Event('change'));
-    provinceSelect.value = info.provincia;
-    provinceSelect.dispatchEvent(new Event('change'));
-    communeSelect.value = comuna;
+    poblarRegiones(info.region);
+    poblarProvincias(info.region, info.provincia);
+    poblarComunas(info.provincia, comuna);
 
     setZonaActiva(null);
     showLimits(info.region, info.provincia, comuna);
@@ -489,11 +532,9 @@ function aplicarFiltrosPorComuna(comuna) {
 
 // Deja los selects de Región/Provincia/Comuna vacíos sin volver a pintar.
 function limpiarSelects() {
-    regionSelect.value = '';
-    provinceSelect.innerHTML = '<option value="">-- Seleccionar Provincia --</option>';
-    provinceSelect.disabled = true;
-    communeSelect.innerHTML = '<option value="">-- Seleccionar Comuna --</option>';
-    communeSelect.disabled = true;
+    poblarRegiones('');
+    poblarProvincias('', '');
+    poblarComunas('', '');
 }
 
 //=============== FILTRO POR ZONA (desde el resumen general) ===============//
@@ -568,27 +609,35 @@ function getFilteredProjects(region, province, commune) {
     });
 }
 
-// Pinta la lista en el sidebar, los markers en el mapa y el panel de
-// beneficiarios para un conjunto de proyectos. `alcance` describe el filtro
-// activo (p.ej. "Zona Norte", "Biobío") para el panel derecho.
+// Pinta los markers de un conjunto de proyectos y recalcula el panel
+// derecho. `alcance` describe el filtro activo (p.ej. "Zona Norte",
+// "Biobío"). La lista del panel muestra solo los que quedan en pantalla.
 function renderProjects(projects, alcance = 'Todo Chile') {
-    const projectsList = document.getElementById('projectsList');
-    projectsList.innerHTML = '';
-
     // Se guardan antes de limpiar los markers: al quitarlos se cierra el
     // popup abierto y el panel vuelve a esta selección.
     proyectosVisibles = projects;
     alcanceActual = alcance;
     clearProjectMarkers();
+    projects.forEach(addProjectMarker);
     actualizarPanelSegunVista();
+}
+
+// Categorías desplegadas en la lista: se recuerdan para que no se cierren
+// cada vez que la lista se rehace al mover el mapa.
+const categoriasAbiertas = new Set();
+
+// Lista del panel derecho, agrupada por categoría (campo "tipo").
+function renderListaProyectos(projects) {
+    const projectsList = document.getElementById('projectsList');
+    const contador = document.getElementById('projectsListCount');
+    projectsList.innerHTML = '';
+    contador.textContent = formatNumber(projects.length);
 
     if (projects.length === 0) {
-        projectsList.innerHTML = '<div style="padding: 15px; color: #7f8c8d;">No hay proyectos en esta selección</div>';
+        projectsList.innerHTML = '<div class="projects-list-empty">No hay proyectos en pantalla. Aleja el zoom o mueve el mapa.</div>';
         return;
     }
 
-    // Agrupar por categoría (campo "tipo") para poder recorrer los
-    // proyectos por tema en vez de una lista plana.
     const porCategoria = {};
     projects.forEach(project => {
         const categoria = project.tipo || 'S/I';
@@ -605,7 +654,11 @@ function renderProjects(projects, alcance = 'Todo Chile') {
 
         const grupo = document.createElement('details');
         grupo.className = 'category-group';
-        grupo.open = categoriasOrdenadas.length === 1;
+        grupo.open = categoriasOrdenadas.length === 1 || categoriasAbiertas.has(categoria);
+        grupo.addEventListener('toggle', () => {
+            if (grupo.open) categoriasAbiertas.add(categoria);
+            else categoriasAbiertas.delete(categoria);
+        });
 
         const resumen = document.createElement('summary');
         resumen.className = 'category-summary';
@@ -618,17 +671,19 @@ function renderProjects(projects, alcance = 'Todo Chile') {
         proyectosCategoria.forEach(project => {
             const photos = PROJECT_PHOTOS[project.id];
             const tienePhotos = !!photos;
+            const color = colorLineaTrabajo(project.linea_trabajo);
 
             const projectItem = document.createElement('div');
             projectItem.className = 'project-item';
+            projectItem.style.borderLeftColor = color.fill;
             projectItem.innerHTML = `
                 <div class="project-header" style="margin-bottom:4px;">
-                    <span class="project-type">${project.tipo}</span>
+                    <span class="project-type">${nombreComuna(project.comuna)}</span>
                     <span class="project-status status-${project.estado_key}">${project.estado}</span>
                 </div>
                 <strong>${project.name}</strong>
-                ${noAplica(project.monto) ? '' : `<small>Monto: ${formatMonto(project.monto)}</small>`}
-                ${noAplica(project.participantes) ? '' : `<small>Beneficiarios: ${formatCantidad(project.participantes)}</small>`}
+                ${noAplica(project.monto) ? '' : `<small>${project.fondo_adjudicado ? 'Monto adjudicado' : 'Monto'}: ${formatMonto(project.monto)}</small>`}
+                ${noAplica(project.participantes) ? '' : `<small>${project.fondo_adjudicado ? 'Habitantes (Censo)' : 'Beneficiarios'}: ${formatCantidad(project.participantes)}</small>`}
                 ${tienePhotos ? `
                 <div class="project-photos-thumbs">
                     ${photos.map((src, idx) => `<img src="${src}" class="project-photo-thumb" data-idx="${idx}" alt="Foto ${idx + 1} de ${project.name}">`).join('')}
@@ -650,9 +705,6 @@ function renderProjects(projects, alcance = 'Todo Chile') {
             }
 
             grupo.appendChild(projectItem);
-
-            // Agregar marker en el mapa (si el proyecto trae coordenadas)
-            addProjectMarker(project);
         });
 
         projectsList.appendChild(grupo);
@@ -970,6 +1022,7 @@ function actualizarPanelSegunVista() {
         typeof p.lat === 'number' && typeof p.lng === 'number' && bounds.contains([p.lat, p.lng])
     );
     renderPanelBeneficiarios(enPantalla, alcanceActual, null, proyectosVisibles.length);
+    renderListaProyectos(enPantalla);
 }
 
 // Límites del mapa descontando lo que tapa el propio panel derecho (en
@@ -984,7 +1037,10 @@ function limitesVisibles() {
     );
 }
 
-map.on('moveend', actualizarPanelSegunVista);
+map.on('moveend', () => {
+    actualizarPanelSegunVista();
+    actualizarFiltrosSegunVista();
+});
 
 // Con `volverA` el panel muestra un solo proyecto seleccionado, con un link
 // para volver a la selección completa (`volverA` es su nombre). Con
@@ -1082,15 +1138,18 @@ function renderPanelBeneficiarios(projects, alcance, volverA = null, totalSelecc
     if (back) back.addEventListener('click', () => map.closePopup());
 }
 
+// Abrir/cerrar el panel cambia cuánto mapa queda a la vista.
 function abrirPanelBeneficiarios() {
     statsPanelEl.classList.add('active');
     document.body.classList.add('stats-open');
     actualizarPanelSegunVista();
+    actualizarFiltrosSegunVista();
 }
 
 function cerrarPanelBeneficiarios() {
     statsPanelEl.classList.remove('active');
     document.body.classList.remove('stats-open');
+    actualizarFiltrosSegunVista();
 }
 
 document.getElementById('closeStatsPanel').addEventListener('click', cerrarPanelBeneficiarios);
@@ -1100,7 +1159,7 @@ const statsToggle = L.control({ position: 'topright' });
 statsToggle.onAdd = function() {
     const btn = L.DomUtil.create('button', 'stats-toggle');
     btn.type = 'button';
-    btn.title = 'Mostrar/Ocultar beneficiarios';
+    btn.title = 'Mostrar/Ocultar proyectos en pantalla';
     btn.innerHTML = '📊';
     L.DomEvent.disableClickPropagation(btn);
     L.DomEvent.on(btn, 'click', () => {

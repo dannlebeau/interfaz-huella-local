@@ -24,16 +24,15 @@ interfaz_huella_local/
 ## ✨ Características
 
 - 🗺️ **Mapa interactivo** centrado en Chile con Leaflet
-- 🧭 **6 mapas base** intercambiables (selector arriba a la derecha): CartoDB
-  Positron (por defecto), OpenStreetMap, CartoDB Oscuro, Esri Satelital, Esri
-  Topográfico y OpenTopoMap. Positron es el default porque siempre renderiza
-  bien a cualquier zoom; el resto son alternativas para explorar (satelital,
-  oscuro, relieve)
+- 🧭 **7 mapas base** intercambiables (selector arriba a la derecha): Esri
+  Satelital (por defecto), Esri Calles, Esri Gris claro, Esri Gris oscuro, Esri
+  Topográfico, OpenStreetMap y OpenTopoMap. CARTO se sacó porque ahora exige
+  API key; los servicios de Esri usados no la piden
 - 📍 **Los 482 proyectos se muestran desde el inicio**, sin necesidad de filtrar
-- 🔍 **Filtros jerárquicos**: Región → Provincia → Comuna (acotan qué proyectos se ven)
+- 🔍 **Filtros jerárquicos**: Región → Provincia → Comuna (acotan qué proyectos se ven). Las opciones se ajustan a lo que hay en pantalla: con cada zoom o desplazamiento solo aparecen las regiones/provincias/comunas con proyectos a la vista, con su cantidad entre paréntesis
 - 📍 **Proyectos geolocalizados**, con zoom in automático al pinchar uno (desde el mapa o el sidebar)
 - 🧭 **Filtro por zona**: en el Resumen general, pinchar Norte / Centro / Sur / Austral muestra solo esos proyectos (pinchar de nuevo la misma zona vuelve a todos)
-- 📊 **Panel de beneficiarios** (derecha, botón 📊): total de beneficiarios directos, desglose hombres ♂ / mujeres ♀ y por línea de trabajo; cuenta solo los proyectos que se ven en pantalla, así que se recalcula con cada filtro, zoom o desplazamiento, y al pinchar un proyecto muestra solo ese
+- 📊 **Panel derecho "Proyectos en pantalla"** (botón 📊): beneficiarios directos, desglose hombres ♂ / mujeres ♀, beneficiarios por línea de trabajo y la lista de proyectos agrupada por categoría. Todo cuenta solo lo que se ve en pantalla, así que se recalcula con cada filtro, zoom o desplazamiento; al pinchar un proyecto las estadísticas muestran solo ese
 - 🔗 **Link a Google Maps** en el popup de cada proyecto, para revisar/corregir su ubicación
 - 📷 **Carrusel de fotos** por proyecto (opcional, ver sección "Fotos de proyectos" abajo)
 - 📊 **Tooltips** con: nombre, monto, participantes, porcentaje de avance
