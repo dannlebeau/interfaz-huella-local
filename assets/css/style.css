@@ -118,7 +118,7 @@ body, html {
     height: 100vh;
     background: white;
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
+    z-index: 1002; /* sobre el buscador y demás controles del mapa */
     overflow-y: auto;
     transition: left 0.3s ease;
     padding: 0;
@@ -1156,6 +1156,85 @@ body.stats-open .leaflet-right {
     text-decoration: underline;
 }
 
+/* ========== BUSCADOR (leaflet-control-geocoder) ========== */
+/* Con el sidebar izquierdo abierto, el buscador se corre a su lado */
+.leaflet-left {
+    transition: left 0.3s ease;
+}
+
+body.sidebar-open .leaflet-left {
+    left: 295px; /* 350px del sidebar + 10px de aire - 65px de margen del buscador */
+}
+
+/* Junto al botón ☰ (que ocupa la esquina superior izquierda) */
+.leaflet-control-geocoder.leaflet-bar {
+    margin-left: 65px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.leaflet-control-geocoder-form input {
+    width: 300px;
+    height: 41px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #2c3e50;
+}
+
+.leaflet-control-geocoder-alternatives {
+    width: 340px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.leaflet-control-geocoder-alternatives li a {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 6px;
+    padding: 6px 4px;
+    white-space: normal;
+}
+
+.leaflet-control-geocoder-error {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.geo-tag {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #ecf0f1;
+    color: #566573;
+}
+
+.geo-tag-proyecto {
+    background: #eaf2fd;
+    color: #2471a3;
+}
+
+.geo-tag-comuna {
+    background: #e9f7ef;
+    color: #1d8348;
+}
+
+.geo-titulo {
+    font-size: 12px;
+    color: #2c3e50;
+}
+
+.geo-detalle {
+    flex-basis: 100%;
+    font-size: 11px;
+    color: #7f8c8d;
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {
     .sidebar {
@@ -1182,6 +1261,24 @@ body.stats-open .leaflet-right {
     .stats-panel {
         width: 100%;
         right: -100%;
+    }
+
+    .leaflet-control-geocoder.leaflet-bar {
+        margin-left: 52px;
+        margin-top: 5px;
+    }
+
+    body.sidebar-open .leaflet-left {
+        left: 0;
+    }
+
+    .leaflet-control-geocoder-form input {
+        width: calc(100vw - 120px);
+        height: 36px;
+    }
+
+    .leaflet-control-geocoder-alternatives {
+        width: calc(100vw - 70px);
     }
 
     body.stats-open .leaflet-right {

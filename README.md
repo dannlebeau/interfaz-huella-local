@@ -28,6 +28,7 @@ interfaz_huella_local/
   Satelital (por defecto), Esri Calles, Esri Gris claro, Esri Gris oscuro, Esri
   Topográfico, OpenStreetMap y OpenTopoMap. CARTO se sacó porque ahora exige
   API key; los servicios de Esri usados no la piden
+- 🔎 **Buscador** (arriba a la izquierda): mientras se escribe sugiere comunas y proyectos (por nombre o Código FHL) desde los datos propios; con Enter busca además direcciones en Nominatim/OpenStreetMap (gratis, sin API key, limitado a Chile) y acerca el mapa con un marcador
 - 📍 **Los 482 proyectos se muestran desde el inicio**, sin necesidad de filtrar
 - 🔍 **Filtros jerárquicos**: Región → Provincia → Comuna (acotan qué proyectos se ven). Las opciones se ajustan a lo que hay en pantalla: con cada zoom o desplazamiento solo aparecen las regiones/provincias/comunas con proyectos a la vista, con su cantidad entre paréntesis
 - 📍 **Proyectos geolocalizados**, con zoom in automático al pinchar uno (desde el mapa o el sidebar)
@@ -162,6 +163,33 @@ Modifica `assets/css/style.css`:
 - Colores principales: `#2c3e50`, `#3498db`
 - Transiciones y animaciones
 - Estilos responsivos
+
+## 🔒 Seguridad
+
+Es un sitio estático (sin servidor propio, sin login, sin base de datos), así
+que no aplican captcha, límite de intentos de login, roles de admin ni Row
+Level Security. Lo que sí está cubierto:
+
+- **Content-Security-Policy** (meta en `index.html`): solo scripts propios y de
+  unpkg, imágenes de los servidores de mapas, y conexiones solo a los datos
+  propios y a Nominatim. Si se agrega un mapa base o librería de otro dominio,
+  hay que sumarlo ahí o el navegador lo bloquea.
+- **Subresource Integrity**: Leaflet y el buscador se cargan con hash
+  `integrity`; si unpkg sirviera un archivo alterado, el navegador no lo ejecuta.
+  Al subir de versión una librería hay que recalcular su hash.
+- **Escape de HTML** (`esc()` en `map.js`): todo texto del Excel o de
+  OpenStreetMap se escapa antes de mostrarse, para que no pueda inyectar código.
+- **Buscador**: la consulta se limpia y acota (200 caracteres) y Nominatim se
+  consulta como máximo 1 vez por segundo, según su política de uso.
+- **Secretos**: el historial de git no tiene claves ni tokens. El Excel fuente
+  (`origen/`) no se versiona.
+- **CORS**: GitHub Pages responde siempre con `Access-Control-Allow-Origin: *`
+  y no se puede cambiar; para cerrarlo habría que usar otro hosting (p.ej.
+  Netlify/Cloudflare con cabeceras propias). Todo lo publicado es público de
+  todas formas.
+- **Datos publicados**: `data/proyectos_comunas.json` incluye *todos* los
+  proyectos (también los tipos que la interfaz oculta) con montos y
+  beneficiarios. Ocultar en la interfaz no es lo mismo que no publicar.
 
 ## 🛠️ Tecnologías
 

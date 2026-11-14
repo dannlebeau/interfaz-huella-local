@@ -8,13 +8,19 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Seguridad: solo se cargan scripts propios y de unpkg (con hash de
+         integridad), imágenes de los servidores de mapas, y las únicas
+         conexiones permitidas son los datos propios y el buscador Nominatim. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://unpkg.com https://server.arcgisonline.com https://*.tile.openstreetmap.org https://*.tile.opentopomap.org; connect-src 'self' https://nominatim.openstreetmap.org; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="author" content="Huella Local">
     <meta name="description" content="Visualiza proyectos de Huella Local en Chile">
     <meta name="keywords" content="geografia, mapas, leaflet, sig, tecnología, javascript, chile">
     <meta name="developer" content="Dann LeBeau">
     <meta name="creator" content="Dann LeBeau">
     <title>Huella Local - Proyectos en Chile</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" integrity="sha384-gOibXC9S5JpMrpEP0ee6wCSVHjFSEuOzLLzTUmg58qM+mJ1rI8h/aY3lS9YUmo55" crossorigin="anonymous" />
     <link rel="stylesheet" href="./assets/css/style.css">
 </head>
 <body>
@@ -97,7 +103,8 @@
 </div>
 
 <!-- Scripts -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js" integrity="sha384-rGCFEOuLo3qUtZTJs5enHPutiikUQ6AJroPg2rQqOhmXBPmZdvhwK2aCmkhe9gwo" crossorigin="anonymous"></script>
 <script src="./assets/js/map.js"></script>
 
 </body>

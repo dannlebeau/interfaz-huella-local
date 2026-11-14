@@ -133,6 +133,13 @@ map.on('click', () => {
     sidebar.classList.remove('active');
 });
 
+// Con el sidebar abierto, los controles de la izquierda (buscador) se corren
+// para no quedar tapados. Se observa la clase porque el sidebar se abre y
+// cierra desde varios lugares.
+new MutationObserver(() => {
+    document.body.classList.toggle('sidebar-open', sidebar.classList.contains('active'));
+}).observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+
 // No cerrar sidebar al hacer click dentro
 sidebar.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -369,7 +376,7 @@ function contarProyectosEnPantalla() {
 function poblarSelect(select, placeholder, valores, conteos, seleccion) {
     const opciones = valores.filter(v => conteos[v] || v === seleccion);
     select.innerHTML = `<option value="">${opciones.length ? placeholder : '-- Sin proyectos en pantalla --'}</option>` +
-        opciones.map(v => `<option value="${v}">${v} (${conteos[v] || 0})</option>`).join('');
+        opciones.map(v => `<option value="${esc(v)}">${esc(v)} (${conteos[v] || 0})</option>`).join('');
     select.value = seleccion || '';
 }
 
@@ -663,7 +670,7 @@ function renderListaProyectos(projects) {
         const resumen = document.createElement('summary');
         resumen.className = 'category-summary';
         resumen.innerHTML = `
-            <span class="category-name">${categoria.replace(/_/g, ' ')}</span>
+            <span class="category-name">${esc(categoria.replace(/_/g, ' '))}</span>
             <span class="category-count">${proyectosCategoria.length}</span>
         `;
         grupo.appendChild(resumen);
@@ -678,15 +685,15 @@ function renderListaProyectos(projects) {
             projectItem.style.borderLeftColor = color.fill;
             projectItem.innerHTML = `
                 <div class="project-header" style="margin-bottom:4px;">
-                    <span class="project-type">${nombreComuna(project.comuna)}</span>
-                    <span class="project-status status-${project.estado_key}">${project.estado}</span>
+                    <span class="project-type">${esc(nombreComuna(project.comuna))}</span>
+                    <span class="project-status status-${esc(project.estado_key)}">${esc(project.estado)}</span>
                 </div>
-                <strong>${project.name}</strong>
+                <strong>${esc(project.name)}</strong>
                 ${noAplica(project.monto) ? '' : `<small>${project.fondo_adjudicado ? 'Monto adjudicado' : 'Monto'}: ${formatMonto(project.monto)}</small>`}
                 ${noAplica(project.participantes) ? '' : `<small>${project.fondo_adjudicado ? 'Habitantes (Censo)' : 'Beneficiarios'}: ${formatCantidad(project.participantes)}</small>`}
                 ${tienePhotos ? `
                 <div class="project-photos-thumbs">
-                    ${photos.map((src, idx) => `<img src="${src}" class="project-photo-thumb" data-idx="${idx}" alt="Foto ${idx + 1} de ${project.name}">`).join('')}
+                    ${photos.map((src, idx) => `<img src="${src}" class="project-photo-thumb" data-idx="${idx}" alt="Foto ${idx + 1} de ${esc(project.name)}">`).join('')}
                 </div>` : ''}
             `;
 
@@ -728,27 +735,38 @@ function addProjectMarker(project) {
     const popupContent = `
         <div class="popup-content">
             <div class="project-header" style="margin-bottom:6px;">
-                <span class="project-type">${project.tipo}</span>
-                <span class="project-status status-${project.estado_key}">${project.estado}</span>
+                <span class="project-type">${esc(project.tipo)}</span>
+                <span class="project-status status-${esc(project.estado_key)}">${esc(project.estado)}</span>
             </div>
-            <h4>${project.name}</h4>
+            <h4>${esc(project.name)}</h4>
             ${noAplica(project.monto) ? '' : `<p><strong>${project.fondo_adjudicado ? 'Monto adjudicado' : 'Monto'}:</strong> ${formatMonto(project.monto)}</p>`}
             ${noAplica(project.participantes) ? '' : `<p><strong>${project.fondo_adjudicado ? 'Habitantes (Censo)' : 'Beneficiarios'}:</strong> ${formatCantidad(project.participantes)}</p>`}
-            <p><strong>Región:</strong> ${project.region} &middot; <strong>Comuna:</strong> ${nombreComuna(project.comuna)}</p>
-            ${tieneDato(project.socio) ? `<p><strong>${project.fondo_adjudicado ? 'Fondo adjudicado' : 'Socio / Empresa'}:</strong> ${project.socio}</p>` : ''}
-            ${tieneDato(project.financiamiento) ? `<p><strong>Financiamiento:</strong> ${project.financiamiento}</p>` : ''}
-            ${typeof project.magnitud === 'number' ? `<p><strong>Magnitud:</strong> ${formatNumber(project.magnitud)}${tieneDato(project.unidad) ? ' ' + project.unidad : ''}</p>` : ''}
+            <p><strong>Región:</strong> ${esc(project.region)} &middot; <strong>Comuna:</strong> ${esc(nombreComuna(project.comuna))}</p>
+            ${tieneDato(project.socio) ? `<p><strong>${project.fondo_adjudicado ? 'Fondo adjudicado' : 'Socio / Empresa'}:</strong> ${esc(project.socio)}</p>` : ''}
+            ${tieneDato(project.financiamiento) ? `<p><strong>Financiamiento:</strong> ${esc(project.financiamiento)}</p>` : ''}
+            ${typeof project.magnitud === 'number' ? `<p><strong>Magnitud:</strong> ${formatNumber(project.magnitud)}${tieneDato(project.unidad) ? ' ' + esc(project.unidad) : ''}</p>` : ''}
             ${renderLineaTiempo(project.linea_tiempo)}
             ${textoUbicacion(project)}
             <a class="popup-gmaps-link" href="https://www.google.com/maps/search/?api=1&query=${project.lat},${project.lng}" target="_blank" rel="noopener">📍 Ver en Google Maps</a>
             ${PROJECT_PHOTOS[project.id] ? `
             <div class="popup-photos-thumbs">
-                ${PROJECT_PHOTOS[project.id].map((src, idx) => `<img src="${src}" class="popup-photo-thumb" onclick="openPhotoCarousel('${project.id}', ${idx}); return false;" alt="Foto ${idx + 1}">`).join('')}
+                ${PROJECT_PHOTOS[project.id].map((src, idx) => `<img src="${src}" class="popup-photo-thumb" data-idx="${idx}" alt="Foto ${idx + 1}">`).join('')}
             </div>` : ''}
         </div>
     `;
 
     marker.bindPopup(popupContent, { maxWidth: 340 });
+
+    // Miniaturas de fotos del popup: listeners en vez de onclick en línea
+    // (la Content-Security-Policy de index.html bloquea los onclick en línea).
+    marker.on('popupopen', e => {
+        e.popup.getElement().querySelectorAll('.popup-photo-thumb').forEach(img => {
+            img.addEventListener('click', ev => {
+                ev.preventDefault();
+                openPhotoCarousel(project.id, Number(img.dataset.idx));
+            });
+        });
+    });
     marker.on('click', function() {
         // Al pinchar un proyecto en el mapa, hacer zoom in y centrarlo (igual
         // que al elegirlo desde el sidebar), no solo abrir el popup.
@@ -785,6 +803,15 @@ function clearProjectMarkers() {
         map.removeLayer(marker);
     });
     projectMarkers = {};
+}
+
+// Escapa texto antes de insertarlo como HTML. Todo lo que viene de los datos
+// (Excel) o de OpenStreetMap (buscador, editable por cualquiera) pasa por acá
+// para que no pueda inyectar HTML ni scripts en la página.
+function esc(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
 }
 
 function formatNumber(num) {
@@ -933,8 +960,8 @@ function renderGeneralStats() {
     const [comunaTop, cantidadTop] = Object.entries(porComuna).sort((a, b) => b[1] - a[1])[0] || [null, 0];
 
     const zonasHtml = zonasOrdenadas.map(zona => `
-        <div class="zona-row${zona === zonaActiva ? ' active' : ''}" data-zona="${zona}" title="Mostrar solo los proyectos de la zona ${zona}">
-            <span class="zona-label">${zona}</span>
+        <div class="zona-row${zona === zonaActiva ? ' active' : ''}" data-zona="${esc(zona)}" title="Mostrar solo los proyectos de la zona ${esc(zona)}">
+            <span class="zona-label">${esc(zona)}</span>
             <span class="zona-count">${porZona[zona]}</span>
         </div>
     `).join('');
@@ -942,10 +969,10 @@ function renderGeneralStats() {
     const extremoHtml = (titulo, proyecto, valorExtra) => {
         if (!proyecto) return '';
         return `
-            <div class="stat-highlight" data-project-id="${proyecto.id}">
+            <div class="stat-highlight" data-project-id="${esc(proyecto.id)}">
                 <span class="stat-highlight-label">${titulo}</span>
-                <strong>${proyecto.name}</strong>
-                <small>${nombreComuna(proyecto.comuna)}${valorExtra ? ' · ' + valorExtra : ''}</small>
+                <strong>${esc(proyecto.name)}</strong>
+                <small>${esc(nombreComuna(proyecto.comuna))}${valorExtra ? ' · ' + valorExtra : ''}</small>
             </div>
         `;
     };
@@ -963,7 +990,7 @@ function renderGeneralStats() {
             ${extremoHtml('Más beneficiarios', masBeneficiarios, masBeneficiarios ? `${formatCantidad(masBeneficiarios.participantes)} benef.` : '')}
             ${extremoHtml('Más caro', masCaro, masCaro ? formatMonto(masCaro.monto) : '')}
             ${extremoHtml('Más barato', masBarato, masBarato ? formatMonto(masBarato.monto) : '')}
-            ${comunaTop ? `<div class="stat-highlight" data-comuna="${comunaTop}"><span class="stat-highlight-label">Comuna con más proyectos</span><strong>${comunaTop}</strong><small>${cantidadTop} proyectos</small></div>` : ''}
+            ${comunaTop ? `<div class="stat-highlight" data-comuna="${esc(comunaTop)}"><span class="stat-highlight-label">Comuna con más proyectos</span><strong>${esc(comunaTop)}</strong><small>${cantidadTop} proyectos</small></div>` : ''}
         </div>
     `;
 
@@ -1073,11 +1100,11 @@ function renderPanelBeneficiarios(projects, alcance, volverA = null, totalSelecc
         ${volverA ? `
         <div class="stats-scope stats-scope-proyecto">
             <span class="stats-scope-kicker">Proyecto seleccionado</span>
-            <span class="stats-scope-label">${alcance}</span>
-            <button type="button" class="stats-back" id="statsBack">← Volver a ${volverA}</button>
+            <span class="stats-scope-label">${esc(alcance)}</span>
+            <button type="button" class="stats-back" id="statsBack">← Volver a ${esc(volverA)}</button>
         </div>` : `
         <div class="stats-scope">
-            <span class="stats-scope-label">${alcance}</span>
+            <span class="stats-scope-label">${esc(alcance)}</span>
             <span class="stats-scope-count">${projects.length === totalSeleccion
                 ? `${formatNumber(projects.length)} proyectos`
                 : `${formatNumber(projects.length)} de ${formatNumber(totalSeleccion)} en pantalla`}</span>
@@ -1218,6 +1245,140 @@ document.getElementById('photoPrev').addEventListener('click', showPrevPhoto);
 photoModal.addEventListener('click', (e) => {
     if (e.target === photoModal) closePhotoCarousel();
 });
+
+//=============== BUSCADOR (direcciones, comunas y proyectos) ===============//
+// Un solo campo de búsqueda arriba a la izquierda:
+//  - Proyectos (por nombre o Código FHL) y comunas: se buscan en los datos
+//    propios, sin conexión, y aparecen mientras se escribe.
+//  - Direcciones: al presionar Enter se consultan además a Nominatim
+//    (OpenStreetMap), gratis y sin API key. Su política de uso pide no
+//    autocompletar contra el servicio, por eso solo se consulta con Enter.
+
+const nominatim = L.Control.Geocoder.nominatim({
+    geocodingQueryParams: { countrycodes: 'cl', 'accept-language': 'es' },
+});
+
+function normalizarTexto(texto) {
+    return String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+
+function etiquetaResultado(tipo, titulo, detalle) {
+    return `<span class="geo-tag geo-tag-${tipo}">${tipo === 'proyecto' ? 'Proyecto' : tipo === 'comuna' ? 'Comuna' : 'Dirección'}</span>
+        <span class="geo-titulo">${esc(titulo)}</span>${detalle ? `<span class="geo-detalle">${esc(detalle)}</span>` : ''}`;
+}
+
+function buscarLocal(consulta) {
+    const q = normalizarTexto(consulta);
+    if (q.length < 2) return [];
+
+    const comunas = Object.keys(comunaInfo)
+        .filter(c => normalizarTexto(c).includes(q))
+        .slice(0, 4)
+        .map(c => ({
+            tipoResultado: 'comuna',
+            comuna: c,
+            name: c,
+            html: etiquetaResultado('comuna', c, comunaInfo[c].region),
+        }));
+
+    const proyectos = getAllProjects()
+        .filter(p => typeof p.lat === 'number' &&
+            (normalizarTexto(p.name).includes(q) || normalizarTexto(p.id).includes(q)))
+        .slice(0, 6)
+        .map(p => ({
+            tipoResultado: 'proyecto',
+            proyecto: p,
+            name: p.name,
+            html: etiquetaResultado('proyecto', p.name, `${p.id} · ${nombreComuna(p.comuna)}`),
+        }));
+
+    return [...comunas, ...proyectos];
+}
+
+// Nominatim permite como máximo 1 consulta por segundo por usuario: si se
+// presiona Enter muy seguido, la consulta espera su turno en vez de saturar
+// el servicio (y arriesgar que bloqueen el sitio).
+const NOMINATIM_INTERVALO_MS = 1100;
+let ultimaConsultaNominatim = 0;
+
+function consultarNominatim(consulta, cb) {
+    const espera = Math.max(0, ultimaConsultaNominatim + NOMINATIM_INTERVALO_MS - Date.now());
+    ultimaConsultaNominatim = Date.now() + espera;
+    setTimeout(() => nominatim.geocode(consulta, cb), espera);
+}
+
+const geocoderHuella = {
+    suggest(consulta, cb, context) {
+        cb.call(context, buscarLocal(consulta));
+    },
+    geocode(consulta, cb, context) {
+        const locales = buscarLocal(consulta);
+        // Validación básica de lo escrito: largo acotado y sin caracteres de
+        // control antes de mandarlo a un servicio externo.
+        const limpia = String(consulta).replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 200);
+        if (limpia.length < 3) {
+            cb.call(context, locales);
+            return;
+        }
+        consultarNominatim(limpia, resultados => {
+            const direcciones = resultados.map(r => ({
+                ...r,
+                tipoResultado: 'direccion',
+                html: etiquetaResultado('direccion', r.name),
+            }));
+            cb.call(context, [...locales, ...direcciones]);
+        });
+    },
+};
+
+let marcadorBusqueda = null;
+
+function mostrarResultadoBusqueda(resultado) {
+    if (marcadorBusqueda) {
+        map.removeLayer(marcadorBusqueda);
+        marcadorBusqueda = null;
+    }
+
+    if (resultado.tipoResultado === 'comuna') {
+        aplicarFiltrosPorComuna(resultado.comuna);
+        return;
+    }
+
+    if (resultado.tipoResultado === 'proyecto') {
+        // Si el proyecto quedó fuera del filtro activo, se vuelve a todo Chile
+        // para que su marker exista.
+        if (!projectMarkers[resultado.proyecto.id]) {
+            limpiarSelects();
+            setZonaActiva(null);
+            clearLimits();
+            renderProjects(getAllProjects(), 'Todo Chile');
+        }
+        centerOnProject(resultado.proyecto);
+        return;
+    }
+
+    // Dirección: acercar y dejar un marcador con la dirección encontrada.
+    map.fitBounds(resultado.bbox, { maxZoom: 17 });
+    marcadorBusqueda = L.marker(resultado.center, { title: resultado.name })
+        .bindPopup(`<div class="popup-content"><strong>Dirección buscada</strong><p>${esc(resultado.name)}</p></div>`)
+        .addTo(map)
+        .openPopup();
+}
+
+const buscador = L.Control.geocoder({
+    geocoder: geocoderHuella,
+    position: 'topleft',
+    collapsed: false,
+    defaultMarkGeocode: false,
+    placeholder: 'Buscar dirección, comuna o proyecto…',
+    errorMessage: 'Sin resultados',
+    suggestMinLength: 2,
+    suggestTimeout: 250,
+    queryMinLength: 2,
+    showUniqueResult: true,
+}).on('markgeocode', e => mostrarResultadoBusqueda(e.geocode)).addTo(map);
+
+map.attributionControl.addAttribution('Búsqueda © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>');
 
 //=============== CARGAR DATOS INICIALES ===============//
 
