@@ -162,10 +162,12 @@ mapa muestra "Ubicación por confirmar".
 
 ### Revisión de ubicaciones (uso interno)
 
-`revision.html` es una página interna, sin link desde el sitio público,
-para completar la ubicación de los proyectos por confirmar:
+`revision/` es una página interna para completar la ubicación de los
+proyectos por confirmar. Se despliega aparte, en **Render**, como sitio
+estático (`render.yaml`); Vercel la excluye (`.vercelignore`) y solo publica
+el mapa público.
 
-1. Abrir `/revision.html` y subir el Excel (hoja PROYECTOS, mismas columnas).
+1. Abrir la URL de Render y subir el Excel (hoja PROYECTOS, mismas columnas).
 2. Elegir un proyecto en la lista o en el mapa, buscarlo en Google Maps
    (*Compartir* → *Copiar vínculo*) y pegar la URL.
 3. **Descargar Excel**: es el mismo archivo con la columna `URL` completada
@@ -173,6 +175,11 @@ para completar la ubicación de los proyectos por confirmar:
 
 El Excel se procesa solo en el navegador: no se sube a ningún servidor. Si
 se cierra la pestaña sin descargar, se pierden las URL (la página avisa).
+
+Para crearla en Render (una sola vez): *New* → *Blueprint* → elegir este
+repo. Render lee `render.yaml`, crea el sitio `revision-huella-local` y lo
+vuelve a desplegar solo cuando cambia `revision/` en `main`. En local:
+servir la carpeta `revision/` con cualquier servidor estático.
 
 ### Cambiar estilos
 

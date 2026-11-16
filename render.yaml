@@ -1,0 +1,30 @@
+# Render Blueprint: publica solo la página interna de revisión de ubicaciones
+# (carpeta revision/) como sitio estático. El mapa público sigue en Vercel,
+# que ignora esta carpeta (ver .vercelignore).
+services:
+  - type: web
+    name: revision-huella-local
+    runtime: static
+    branch: main
+    buildCommand: echo "Sitio estático, sin build"
+    staticPublishPath: ./revision
+    # Solo se vuelve a desplegar si cambia la revisión
+    buildFilter:
+      paths:
+        - revision/**
+        - render.yaml
+    pullRequestPreviewsEnabled: false
+    headers:
+      # Uso interno: que los buscadores no la indexen
+      - path: /*
+        name: X-Robots-Tag
+        value: noindex, nofollow
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
