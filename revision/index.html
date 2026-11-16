@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Uso interno: no se indexa ni se enlaza desde el sitio público. -->
+    <meta name="robots" content="noindex, nofollow">
+    <!-- Seguridad: solo scripts propios y de unpkg (con hash SRI). El Excel se
+         procesa en el navegador; no se envía a ningún servidor. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://unpkg.com https://server.arcgisonline.com https://*.tile.openstreetmap.org; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+    <title>Revisión de ubicaciones · Huella Local</title>
+    <!-- Tema antes de pintar, para evitar el parpadeo -->
+    <script src="./tema.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+    <link rel="stylesheet" href="./revision.css">
+</head>
+<body>
+    <header class="barra">
+        <h1>Revisión de ubicaciones</h1>
+        <label class="boton boton-principal">
+            Subir Excel
+            <input type="file" id="archivo" accept=".xlsx" hidden>
+        </label>
+        <span id="nombre-archivo" class="nombre-archivo">Ningún archivo cargado</span>
+        <button type="button" id="descargar" class="boton" disabled>Descargar Excel</button>
+        <span id="pendientes" class="pendientes" hidden></span>
+        <button type="button" id="tema" class="boton boton-icono" aria-label="Tema"></button>
+    </header>
+
+    <main class="layout">
+        <aside class="panel">
+            <div id="vista-lista">
+                <div class="controles">
+                    <input type="search" id="buscar" placeholder="Buscar por nombre, comuna o código" disabled>
+                    <select id="filtro" disabled>
+                        <option value="todos">Todos</option>
+                        <option value="por-confirmar">Por confirmar</option>
+                        <option value="confirmados">Confirmados (JCF OK)</option>
+                        <option value="con-url">Con URL</option>
+                        <option value="sin-url">Por confirmar sin URL</option>
+                        <option value="sin-coords">Sin coordenadas</option>
+                    </select>
+                </div>
+                <p id="resumen" class="resumen"></p>
+                <ul id="lista" class="lista"></ul>
+                <div id="vacio" class="vacio">
+                    <p>Sube el Excel de proyectos (hoja <strong>PROYECTOS</strong>) para empezar.</p>
+                    <p>El archivo se procesa solo en este navegador. Al terminar, usa
+                       <strong>Descargar Excel</strong>: es el mismo archivo con la columna
+                       <strong>URL</strong> completada.</p>
+                </div>
+            </div>
+            <div id="vista-detalle" hidden></div>
+        </aside>
+        <div id="mapa" class="mapa"></div>
+    </main>
+
+    <div id="aviso" class="aviso" role="status" hidden></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js" integrity="sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz" crossorigin="anonymous"></script>
+    <script src="./revision.js"></script>
+</body>
+</html>

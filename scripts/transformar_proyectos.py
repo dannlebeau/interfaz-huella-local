@@ -19,9 +19,16 @@ Valores vacíos: "NA" en el Excel significa "no aplica" y se guarda como
 "N/A" (la interfaz no muestra ese dato); "-", "pendiente", "FALTA" o la celda
 vacía significan "sin información" y se guardan como "S/I".
 
-No se descarta ningún proyecto: los que no calzan con una comuna real de
-Comunas.geojson (p.ej. "Varias comunas") quedan bajo la clave
-"__sin_comuna__", documentados en el reporte que imprime al final.
+Se excluyen (y se listan en el reporte):
+  - proyectos cuyo nombre dice "por definir"
+  - proyectos sin Código FHL
+  - proyectos de las subcategorías de SUBCATEGORIAS_EXCLUIDAS
+Los demás que no calzan con una comuna real de Comunas.geojson (p.ej.
+"Varias comunas") quedan bajo la clave "__sin_comuna__", documentados en el
+reporte que imprime al final.
+
+Columna JCF: "OK" significa proyecto 100% confirmado (confirmado = true);
+vacío significa por definir (confirmado = false).
 
 Uso:
     python scripts/transformar_proyectos.py [ruta_al_excel.xlsx]
@@ -130,6 +137,34 @@ TRANSFORMERS = {
 OTRO_HUSO = {"18S": "19S", "19S": "18S"}
 
 VACIOS = {"", "-", "pendiente", "falta", "s/i", "por definir", "na", "n/a"}
+
+# Subcategorías que no se muestran en el mapa (se excluyen del JSON).
+SUBCATEGORIAS_EXCLUIDAS = {
+    "HH Profesionales",
+    "Diagnósticos Territoriales",
+    "Planes Maestros",
+    "Fortalecimiento comunitario",
+    "Manejo y gestión de RSD",
+    "Otros Estudios",
+    "Talleres y/o Capacitaciones",
+}
+SUBCATEGORIAS_EXCLUIDAS_NORM = None  # se llena en main() con normaliza()
+
+
+def motivo_exclusion(row):
+    """Devuelve el motivo por el que se excluye la fila, o None si se incluye."""
+    if "por definir" in normaliza(str(row["nombre"])):
+        return "nombre_por_definir"
+    if es_vacio(row["Código FHL"]):
+        return "sin_codigo_fhl"
+    if normaliza(str(row["Subcategoría"])) in SUBCATEGORIAS_EXCLUIDAS_NORM:
+        return "subcategoria_excluida"
+    return None
+
+
+def es_confirmado(v):
+    """Columna JCF: "OK" (cualquier mayúscula) = confirmado; lo demás, por definir."""
+    return isinstance(v, str) and v.strip().upper() == "OK"
 
 
 def es_na(v):
@@ -360,6 +395,17 @@ def main():
     df = df.dropna(how="all")
     df = df[df["nombre"].notna()]
 
+    global SUBCATEGORIAS_EXCLUIDAS_NORM
+    SUBCATEGORIAS_EXCLUIDAS_NORM = {normaliza(s) for s in SUBCATEGORIAS_EXCLUIDAS}
+    total_filas = len(df)
+    excluidos = {}
+    motivos = df.apply(motivo_exclusion, axis=1)
+    for (_, row), motivo in zip(df.iterrows(), motivos):
+        if motivo:
+            excluidos.setdefault(motivo, []).append(
+                f"ID {int(row['ID'])} | {row['Código FHL']} | {row['Subcategoría']} | {row['nombre']}")
+    df = df[motivos.isna()]
+
     # Código FHL puede faltar o repetirse; el front usa "id" como clave única
     # (markers, fotos), así que se desambigua con el ID correlativo del Excel.
     codigos = df["Código FHL"].map(lambda v: None if es_vacio(v) else str(v).strip())
@@ -367,7 +413,10 @@ def main():
 
     resultado = {}
     reporte = {
-        "total_filas": len(df),
+        "total_filas": total_filas,
+        "incluidos": len(df),
+        "excluidos": {k: {"total": len(v), "filas": v} for k, v in excluidos.items()},
+        "confirmados_jcf": int(df["JCF"].map(es_confirmado).sum()),
         "sin_comuna_valida": [],
         "fuente_coordenadas": {},
         "centroide_por_coord_fuera_de_comuna": [],
@@ -420,6 +469,8 @@ def main():
             "linea_trabajo": limpio(row["Línea de Trabajo"]),
             "estado": estado,
             "estado_key": ESTADO_KEYS.get(estado, "sin-info"),
+            # JCF = OK: 100% confirmado; si no, por definir.
+            "confirmado": es_confirmado(row["JCF"]),
             "monto": limpia_entero(row["Monto Inversión"]),
             "aportes_diseno": limpia_entero(row["Aportes para diseño"]),
             "financiamiento": limpio(row["Financiamiento"]),
