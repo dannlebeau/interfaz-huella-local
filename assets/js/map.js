@@ -885,6 +885,11 @@ function renderLineaTiempo(lineaTiempo) {
 }
 
 function textoUbicacion(project) {
+    // confirmado = false: la columna JCF del Excel no dice "OK". Se mantiene
+    // la coordenada que trae la fuente, pero se avisa que no está validada.
+    if (project.confirmado === false) {
+        return '<p class="popup-ubicacion-nota"><em>Ubicación por confirmar.</em></p>';
+    }
     if (project.ubicacion_tipo === 'centroide') {
         return '<p class="popup-ubicacion-nota"><em>Ubicación aproximada (centro de la comuna, sin coordenada válida en la fuente).</em></p>';
     }

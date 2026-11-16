@@ -4,3 +4,6 @@ data/Comunas_full.geojson
 
 # Excel fuente y planillas de revisión (no se versionan)
 origen/
+
+# Configuración local de Vercel CLI
+.vercel/

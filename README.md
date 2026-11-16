@@ -151,11 +151,28 @@ Actualizar el Excel `origen/Resumen_Proyectos_Huella_Local.xlsx` (hoja
 PROYECTOS) y regenerar el JSON:
 
 ```
-python scripts/transformar_proyectos.py
+uv run --no-project --with pandas --with openpyxl --with pyproj --with shapely python scripts/transformar_proyectos.py
 ```
 
 Mismo criterio de siempre: nada de datos inventados, `"S/I"` para lo que
-falte. Requiere `pandas`, `openpyxl`, `pyproj` y `shapely`.
+falte. Se excluyen los proyectos con nombre "por definir", sin Código FHL o
+de subcategorías que no van en el mapa (lista en `SUBCATEGORIAS_EXCLUIDAS`).
+Los que no tienen "OK" en la columna JCF salen con `confirmado: false` y el
+mapa muestra "Ubicación por confirmar".
+
+### Revisión de ubicaciones (uso interno)
+
+`revision.html` es una página interna, sin link desde el sitio público,
+para completar la ubicación de los proyectos por confirmar:
+
+1. Abrir `/revision.html` y subir el Excel (hoja PROYECTOS, mismas columnas).
+2. Elegir un proyecto en la lista o en el mapa, buscarlo en Google Maps
+   (*Compartir* → *Copiar vínculo*) y pegar la URL.
+3. **Descargar Excel**: es el mismo archivo con la columna `URL` completada
+   (se crea al final si no existe).
+
+El Excel se procesa solo en el navegador: no se sube a ningún servidor. Si
+se cierra la pestaña sin descargar, se pierden las URL (la página avisa).
 
 ### Cambiar estilos
 
